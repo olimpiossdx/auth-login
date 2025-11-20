@@ -1,379 +1,327 @@
 import React from "react";
-import type { FieldListenerMap, ValidatorMap } from "./props";
+import type { FieldListenerMap, FormField, ValidatorMap } from "./props";
+import { getFormFields, parseFieldValue, getRelativePath, setNestedValue, getNestedValue } from "./utilities";
 
-const recursiveSet = (currentLevel: any, keyList: string[], value: any) => {
-  const key = keyList[0];
-  if (key === undefined) return;
-  const remainingKeys = keyList.slice(1);
-  const isNumericKey = /^\d+$/.test(key);
-  const currentKey: string | number = isNumericKey ? Number(key) : key;
-  if (remainingKeys.length === 0) {
-    currentLevel[currentKey] = value;
-    return;
-  }
-  const nextKey = remainingKeys[0];
-  const nextKeyIsNumeric = /^\d+$/.test(nextKey);
-  if (nextKeyIsNumeric) {
-    if (!currentLevel[currentKey] || !Array.isArray(currentLevel[currentKey])) {
-      currentLevel[currentKey] = [];
-    }
-  } else {
-    if (
-      !currentLevel[currentKey] ||
-      typeof currentLevel[currentKey] !== "object" ||
-      Array.isArray(currentLevel[currentKey])
-    ) {
-      currentLevel[currentKey] = {};
-    }
-  }
-  recursiveSet(currentLevel[currentKey], remainingKeys, value);
-};
+// ============ HOOK PRINCIPAL ============
 
-// --- Função Principal de Parseamento (Inalterada) ---
-const setValueByPath = (obj: any, path: string, value: any) => {
-  try {
-    const keys = path.split(".");
-    recursiveSet(obj, keys, value);
-  } catch (e) {
-    console.error(
-      `[useForm] Falha ao definir valor para o caminho "${path}":`,
-      e
-    );
-  }
-};
-
-// Função auxiliar para obter valor aninhado
-const getNestedValue = (obj: any, path: string | (string | number)[]): any => {
-  const keys = Array.isArray(path) ? path : path.split(".");
-  return keys.reduce((o, k) => {
-    if (o === undefined || o === null) return undefined;
-    const index = parseInt(k as string, 10);
-    return isNaN(index) ? o[k] : Array.isArray(o) ? o[index] : undefined;
-  }, obj);
-};
-
-// --- O HOOK `useForm` (v4.11 - Lógica de Submit Parcial) ---
 const useForm = <FV extends Record<string, any>>(providedId?: string) => {
-  const generatedId = React.useId();
-  const formId = providedId || generatedId;
+  const formId = providedId || React.useId();
   const formRef = React.useRef<HTMLFormElement | null>(null);
-  const fieldListenerRefs = React.useRef<FieldListenerMap>(new Map());
-  const validatorsRef = React.useRef<ValidatorMap<FV>>({});
+  const fieldListeners = React.useRef<FieldListenerMap>(new Map());
+  const validators = React.useRef<ValidatorMap<FV>>({});
 
-  const setValidators = React.useCallback((validators: ValidatorMap<FV>) => {
-    validatorsRef.current = validators;
+  // ============ GERENCIAMENTO DE VALIDAÇÃO ============
+
+  const setValidators = React.useCallback((newValidators: ValidatorMap<FV>) => {
+    validators.current = newValidators;
   }, []);
 
-  const getValue = React.useCallback(
-    (namePrefix?: string): Partial<FV> | FV | any => {
-      const form = formRef.current;
+  // ============ LEITURA DE VALORES ============
 
-      if (!form) {
-        return namePrefix ? {} : ({} as FV);
+  /**
+   * Lê valores do formulário diretamente do DOM
+   */
+  const getValue = React.useCallback((namePrefix?: string): Partial<FV> | FV | any => {
+    const form = formRef.current;
+    if (!form) return namePrefix ? {} : ({} as FV);
+
+    const formData = {};
+    const fields = getFormFields(form, namePrefix);
+
+    // Caso especial: campo único com nome exato do prefixo
+    if (namePrefix && fields.length === 0) {
+      const singleField = form.querySelector<FormField>(`[name="${namePrefix}"]`);
+      if (singleField) {
+        return parseFieldValue(singleField);
       }
+    }
 
-      const formData = {};
+    // Processa múltiplos campos
+    fields.forEach(field => {
+      const relativePath = getRelativePath(field.name, namePrefix);
+      if (!relativePath) return;
 
-      const selector = namePrefix
-        ? `input[name^="${namePrefix}"], select[name^="${namePrefix}"], textarea[name^="${namePrefix}"]`
-        : "input[name], select[name], textarea[name]";
+      const value = parseFieldValue(field);
+      setNestedValue(formData, relativePath, value);
+    });
 
-      const fields = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(selector);
+    return formData;
+  }, []);
 
-      fields.forEach((element) => {
-        const name = element.name;
-        if (!name) {
-          return;
-        }
+  // ============ VALIDAÇÃO ============
 
-        let relativePath = name;
-
-        if (namePrefix) {
-          if (name.startsWith(namePrefix)) {
-            relativePath = name.substring(namePrefix.length);
-            if (relativePath.startsWith(".")) {
-              relativePath = relativePath.substring(1);
-            }
-          } else {
-            return;
-          }
-        }
-        const finalPath = relativePath || name;
-        if (!finalPath && namePrefix && name === namePrefix) {
-        } else if (!finalPath) {
-          return;
-        }
-
-        let value: any;
-        if (element.type === "number") {
-          value = element.value === "" ? "" : parseFloat(element.value);
-          if (isNaN(value)) value = element.value;
-        } else if (element.type === "checkbox") {
-          value = (element as HTMLInputElement).checked;
-        } else {
-          value = element.value;
-        }
-        if (finalPath) {
-          setValueByPath(formData, finalPath, value);
-        }
-      });
-      if (namePrefix && Object.keys(formData).length === 0) {
-        const singleField = form.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name="${namePrefix}"]`);
-        if (singleField) {
-          if (singleField.type === "number")
-            return singleField.value === ""
-              ? ""
-              : parseFloat(singleField.value);
-          if (singleField.type === "checkbox")
-            return (singleField as HTMLInputElement).checked;
-          return singleField.value;
-        }
-      }
-      return formData;
-    },
-    []
-  );
-
+  /**
+   * Executa todas as validações customizadas
+   */
   const revalidateAllCustomRules = React.useCallback(() => {
     const form = formRef.current;
-
-    if (!form) {
-      return;
-    }
+    if (!form) return;
 
     const formValues = getValue() as FV;
-    const validatorFns = validatorsRef.current;
+    const validatorFunctions = validators.current;
 
-    for (const validationKey in validatorFns) {
-      const customValidate = validatorFns[validationKey];
+    Object.keys(validatorFunctions).forEach(validationKey => {
+      const validate = validatorFunctions[validationKey];
+      if (!validate) return;
 
-      if (!customValidate) {
-        continue;
-      }
+      // Valida apenas campos habilitados
+      const fieldsToValidate = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+        `[name][data-validation="${validationKey}"]:not(:disabled)`
+      );
 
-      // Só valida habilitados
-      const fieldsToValidate = form.querySelectorAll< HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(`[name][data-validation="${validationKey}"]:not(:disabled)`);
+      fieldsToValidate.forEach(field => {
+        field.setCustomValidity('');
+        const fieldValue = getNestedValue(formValues, field.name);
+        const result = validate(fieldValue, field, formValues);
 
-      fieldsToValidate.forEach((field) => {
-        const name = field.name;
-        field.setCustomValidity("");
-        const fieldValue = getNestedValue(formValues, name);
-
-        const result = customValidate(fieldValue, field, formValues);
-
-        if (typeof result === "string") {
+        if (typeof result === 'string') {
           field.setCustomValidity(result);
-        } else if (typeof result === "object" && result?.type === "error")
+        } else if (result?.type === 'error') {
           field.setCustomValidity(result.message);
+        }
       });
-    }
+    });
 
-    
-    const allFieldsNoCustomValidation = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input[name]:not([data-validation]), select[name]:not([data-validation]), textarea[name]:not([data-validation])');
-    
-    allFieldsNoCustomValidation.forEach((field) => {
+    // Limpa validações customizadas de campos sem regras específicas
+    const fieldsWithoutCustomValidation = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+      'input[name]:not([data-validation]), select[name]:not([data-validation]), textarea[name]:not([data-validation])'
+    );
+
+    fieldsWithoutCustomValidation.forEach(field => {
       if (field.validity.valid) {
-        field.setCustomValidity("");
-      };
+        field.setCustomValidity('');
+      }
     });
   }, [getValue]);
 
-  const handleInteraction = React.useCallback((event: Event) => {
-      (event.currentTarget as HTMLElement).classList.add("is-touched");
-      revalidateAllCustomRules();
-    }, [revalidateAllCustomRules]);
+  // ============ INTERAÇÃO DO USUÁRIO ============
+
+  const handleFieldInteraction = React.useCallback((event: Event) => {
+    (event.currentTarget as HTMLElement).classList.add('is-touched');
+    revalidateAllCustomRules();
+  }, [revalidateAllCustomRules]);
+
+  // ============ RESET DE SEÇÕES ============
 
   const resetSection = React.useCallback((namePrefix: string, originalValues: any) => {
-      const form = formRef.current;
+    const form = formRef.current;
+    if (!form || !originalValues) {
+      console.warn('[resetSection] Formulário ou valores originais não encontrados');
+      return;
+    };
 
-      if (!form || !originalValues) {
-        console.warn('[resetSection] Formulário não encontrado ou valores originais nulos.');
-        return;
+    const fields = getFormFields(form, namePrefix);
+
+    fields.forEach(field => {
+      const relativePath = getRelativePath(field.name, namePrefix);
+      let originalValue;
+
+      if (relativePath) {
+        originalValue = getNestedValue(originalValues, relativePath);
+      } else {
+        originalValue = originalValues[field.name] ?? getNestedValue(originalValues, field.name);
       }
-      
-      const predicate =`input[name^="${namePrefix}"], select[name^="${namePrefix}"], textarea[name^="${namePrefix}"]`
-      const fieldsToReset = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(predicate);
-      
-      fieldsToReset.forEach((field) => {
-        const name = field.name;
-        let relativePath = name.substring(namePrefix.length);
 
-        if (relativePath.startsWith(".")) {
-          relativePath = relativePath.substring(1);
-        };
+      // Aplica valor original ou valor padrão do HTML
+      if (originalValue !== undefined) {
+        applyValueToField(field, originalValue);
+      } else {
+        resetFieldToDefault(field);
+      };
 
-        const originalValue = relativePath
-          ? getNestedValue(originalValues, relativePath)
-          : originalValues[name] ?? getNestedValue(originalValues, name);
+      // Notifica mudança e limpa estado visual
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+      field.classList.remove('is-touched');
+    });
+  }, []);
 
-        if (originalValue !== undefined) {
-          if (field.type === "checkbox") {
-            (field as HTMLInputElement).checked = Boolean(originalValue);
-          } else if (field.type === "radio") {
-            (field as HTMLInputElement).checked =
-              field.value === String(originalValue);
-          } else {
-            field.value = String(originalValue ?? "");
-          }
+  /**
+   * Aplica valor específico ao campo
+   */
+  const applyValueToField = (field: FormField, value: any): void => {
+    if (field.type === 'checkbox' && field instanceof HTMLInputElement) {
+      field.checked = Boolean(value);
+    } else if (field.type === 'radio' && field instanceof HTMLInputElement) {
+      field.checked = field.value === String(value);
+    } else {
+      field.value = String(value ?? '');
+    }
+  };
 
-          field.dispatchEvent(new Event("change", { bubbles: true }));
-          field.classList.remove("is-touched");
-        } else {
-          if (field.type === "checkbox"){
-            (field as HTMLInputElement).checked = (field as HTMLInputElement).defaultChecked;
-          }else if (field.type === "radio"){ 
-            (field as HTMLInputElement).checked = (field as HTMLInputElement).defaultChecked;
-          }else{ 
-            field.value = (field as any).defaultValue;
-          }
+  /**
+   * Reseta campo para seu valor padrão HTML
+   */
+  const resetFieldToDefault = (field: FormField): void => {
+    if ((field.type === 'checkbox' || field.type === 'radio') && field instanceof HTMLInputElement) {
+      field.checked = field.defaultChecked;
+    } else {
+      field.value = (field as any).defaultValue;
+    }
+  };
 
-          field.dispatchEvent(new Event("change", { bubbles: true }));
-          field.classList.remove("is-touched");
-        }
-      });
-    },[]);
+  // ============ GERENCIAMENTO DE EVENTOS ============
 
-  React.useLayoutEffect(() => {
-    const form = document.getElementById(formId) as HTMLFormElement | null;
-    if (!form) {
-      console.warn(`[useForm] Formulário com id '${formId}' não encontrado.`);
+  /**
+   * Adiciona listeners a um campo
+   */
+  const addFieldListeners = (field: HTMLElement): void => {
+    if (!isValidFormField(field)) {
+      return;
+    };
+
+    if (!field.name || fieldListeners.current.has(field)) {
+      return;
+    };
+
+    const listeners = {
+      blur: handleFieldInteraction,
+      change: handleFieldInteraction
+    };
+
+    field.addEventListener('blur', listeners.blur);
+    field.addEventListener('change', listeners.change);
+    fieldListeners.current.set(field, listeners);
+  };
+
+  const isValidFormField = (element: HTMLElement): element is FormField => {
+   const allowedTypes = [HTMLInputElement, HTMLSelectElement, HTMLTextAreaElement];
+   return allowedTypes.some(type => element instanceof type);
+  };
+
+  /**
+   * Remove listeners de um campo
+   */
+  const removeFieldListeners = (field: HTMLElement): void => {
+    if (!isValidFormField(field)) {
       return;
     }
 
-    formRef.current = form;
-    const listenersMap = fieldListenerRefs.current;
-    const addListeners = (field: HTMLElement) => {
-      if (!(field instanceof HTMLInputElement ||
-            field instanceof HTMLSelectElement ||
-            field instanceof HTMLTextAreaElement) ||
-        !field.name ||
-        listenersMap.has(field)){
-          return;
-        };
+    const listeners = fieldListeners.current.get(field);
+    if (listeners) {
+      field.removeEventListener('blur', listeners.blur);
+      field.removeEventListener('change', listeners.change);
+      fieldListeners.current.delete(field);
+    }
+  };
 
-      const blurListener = handleInteraction;
-      const changeListener = handleInteraction;
+  /**
+   * Configura observação de mudanças no DOM
+   */
+  const setupDOMMutationObserver = (form: HTMLFormElement): () => void => {
+    // Adiciona listeners aos campos iniciais
+    const initialFields = getFormFields(form);
+    initialFields.forEach(addFieldListeners);
 
-      field.addEventListener("blur", blurListener);
-      field.addEventListener("change", changeListener);
-      listenersMap.set(field, { blur: blurListener, change: changeListener });
-    };
+    // Configura observer para campos dinâmicos
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type !== 'childList') return;
 
-    const removeListeners = (field: HTMLElement) => {
-      if (!( field instanceof HTMLInputElement ||
-             field instanceof HTMLSelectElement ||
-            field instanceof HTMLTextAreaElement)){
-        return;
-      };
-
-      const listeners = listenersMap.get(field);
-      if (listeners) {
-        field.removeEventListener("blur", listeners.blur);
-        field.removeEventListener("change", listeners.change);
-        listenersMap.delete(field);
-      };
-    };
-  
-    const preciate ="input[name], select[name], textarea[name]";
-    const initialFields = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(preciate);
-
-    initialFields.forEach(addListeners);
-
-    const observer = new MutationObserver((mutationsList) => {
-      mutationsList.forEach((mutation) => {
-        if(!(mutation.type === "childList")){
-          return;
-        };
-        
-        const predicate = 'input[name], select[name], textarea[name]';
-        
-        mutation.addedNodes.forEach((node) => {
-          if(!(node instanceof HTMLElement)){
-            return;
-          };
-
-          addListeners(node);              
-          node.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(predicate).forEach(addListeners);
+        mutation.addedNodes.forEach(node => {
+          if (node instanceof HTMLElement) {
+            addFieldListeners(node);
+            getFormFields(form).forEach(addFieldListeners);
+          }
         });
 
-        mutation.removedNodes.forEach((node) => {
-          if (!(node instanceof HTMLElement)) {
-            return;
-          };
-          
-          removeListeners(node);
-          node.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(predicate).forEach(removeListeners);
+        mutation.removedNodes.forEach(node => {
+          if (node instanceof HTMLElement) {
+            removeFieldListeners(node);
+            getFormFields(form).forEach(removeFieldListeners);
+          }
         });
-
       });
     });
 
     observer.observe(form, { childList: true, subtree: true });
 
-
+    // Função de limpeza
     return () => {
       observer.disconnect();
-      listenersMap.forEach((listeners, field) => {
+      fieldListeners.current.forEach((listeners, field) => {
         if (field?.removeEventListener) {
-          field.removeEventListener("blur", listeners.blur);
-          field.removeEventListener("change", listeners.change);
+          field.removeEventListener('blur', listeners.blur);
+          field.removeEventListener('change', listeners.change);
         }
       });
-      listenersMap.clear();
-      formRef.current = null;
+      fieldListeners.current.clear();
     };
-  }, [formId, handleInteraction]);
+  };
 
-  // --- handleSubmit (v4.11 - Lógica de Submit Parcial) ---
-  const handleSubmit = React.useCallback((onValid: (data: FV) => void) => (event: React.FormEvent<HTMLFormElement>) => {
+  // ============ SUBMIT DO FORMULÁRIO ============
+
+  const handleSubmit = React.useCallback((onValid: (data: FV) => void) => 
+    (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       const form = formRef.current;
-
       if (!form) {
         return;
       };
 
-      // Marca todos os campos (mesmo os desabilitados) como 'touched'
-      const predicate = "input[name], select[name], textarea[name]";
-      const currentFields = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(predicate);
-      currentFields.forEach((field) => field.classList.add("is-touched"));
+      // Marca todos os campos como "tocados"
+      const allFields = getFormFields(form);
+      allFields.forEach(field => field.classList.add('is-touched'));
 
-      // Roda validações customizadas
+      // Executa validações
       revalidateAllCustomRules();
 
+      // Processa resultado após validação
       setTimeout(() => {
-        if (!formRef.current) {
-          return;
-        };
+        if (!formRef.current) return;
 
-        const isFormValid = formRef.current.checkValidity(); // Valida apenas campos habilitados
+        const isValid = formRef.current.checkValidity();
         
-        if (!isFormValid) {
-          const activeFieldset = formRef.current.querySelector<HTMLElement>("fieldset:not(:disabled)") || formRef.current;
-          const firstInvalidField = activeFieldset.querySelector<HTMLElement>(":invalid");
-          if (
-            firstInvalidField
-              ?.closest(".relative")
-              ?.querySelector('input[type="text"].form-input')
-          ) {
-            (              firstInvalidField
-                .closest(".relative")!
-                .querySelector('input[type="text"].form-input') as HTMLElement
-            )?.focus();
-          } else {
-            firstInvalidField?.focus();
-          }
-          formRef.current.reportValidity();
+        if (!isValid) {
+          focusFirstInvalidField(form);
+          form.reportValidity();
         } else {
-          const values = getValue() as FV;
-          onValid(values);
+          onValid(getValue() as FV);
         }
       }, 0);
     },
     [getValue, revalidateAllCustomRules]
   );
 
-  return { handleSubmit, setValidators, formId, resetSection, getValue };
+  /**
+   * Foca no primeiro campo inválido
+   */
+  const focusFirstInvalidField = (form: HTMLFormElement): void => {
+    const activeSection = form.querySelector('fieldset:not(:disabled)') || form;
+    const firstInvalid = activeSection.querySelector<HTMLElement>(':invalid');
+    
+    if (!firstInvalid) {
+      return;
+    };
+
+    // Tenta focar em input dentro de container específico
+    const textInput = firstInvalid.closest('.relative')?.querySelector<HTMLElement>('input[type="text"].form-input');
+    textInput?.focus() || firstInvalid.focus();
+  };
+
+  // ============ EFFECT PRINCIPAL ============
+
+  React.useLayoutEffect(() => {
+    const form = document.getElementById(formId) as HTMLFormElement;
+    if (!form) {
+      console.warn(`[useForm] Formulário com ID '${formId}' não encontrado`);
+      return;
+    }
+
+    formRef.current = form;
+    const cleanup = setupDOMMutationObserver(form);
+
+    return cleanup;
+  }, [formId]);
+
+  // ============ RETORNO DO HOOK ============
+
+  return {
+    handleSubmit,    // Função para lidar com submit
+    setValidators,   // Define validadores customizados
+    formId,          // ID para usar no form HTML
+    resetSection,    // Reseta seção específica
+    getValue         // Lê valores atuais do DOM
+  };
 };
 
 export default useForm;
