@@ -2,8 +2,6 @@ import React from "react";
 import type { FieldListenerMap, FormField, ValidatorMap } from "./props";
 import { getFormFields, parseFieldValue, getRelativePath, setNestedValue, getNestedValue } from "./utilities";
 
-// ============ HOOK PRINCIPAL ============
-
 const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   const formId = providedId || React.useId();
   const formRef = React.useRef<HTMLFormElement | null>(null);
@@ -23,7 +21,9 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
    */
   const getValue = React.useCallback((namePrefix?: string): Partial<FV> | FV | any => {
     const form = formRef.current;
-    if (!form) return namePrefix ? {} : ({} as FV);
+    if (!form) {
+      return namePrefix ? {} : ({} as FV);
+    };
 
     const formData = {};
     const fields = getFormFields(form, namePrefix);
@@ -33,8 +33,8 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
       const singleField = form.querySelector<FormField>(`[name="${namePrefix}"]`);
       if (singleField) {
         return parseFieldValue(singleField);
-      }
-    }
+      };
+    };
 
     // Processa múltiplos campos
     fields.forEach(field => {
@@ -65,9 +65,7 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
       if (!validate) return;
 
       // Valida apenas campos habilitados
-      const fieldsToValidate = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
-        `[name][data-validation="${validationKey}"]:not(:disabled)`
-      );
+      const fieldsToValidate = form.querySelectorAll<FormField>(`[name][data-validation="${validationKey}"]:not(:disabled)`);
 
       fieldsToValidate.forEach(field => {
         field.setCustomValidity('');
@@ -83,7 +81,7 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
     });
 
     // Limpa validações customizadas de campos sem regras específicas
-    const fieldsWithoutCustomValidation = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+    const fieldsWithoutCustomValidation = form.querySelectorAll<FormField>(
       'input[name]:not([data-validation]), select[name]:not([data-validation]), textarea[name]:not([data-validation])'
     );
 
@@ -97,7 +95,11 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   // ============ INTERAÇÃO DO USUÁRIO ============
 
   const handleFieldInteraction = React.useCallback((event: Event) => {
-    (event.currentTarget as HTMLElement).classList.add('is-touched');
+    if(!(event.currentTarget instanceof HTMLElement)){
+      return;
+    };
+
+    event.currentTarget.classList.add('is-touched');
     revalidateAllCustomRules();
   }, [revalidateAllCustomRules]);
 
@@ -164,7 +166,7 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   /**
    * Adiciona listeners a um campo
    */
-  const addFieldListeners = (field: HTMLElement): void => {
+  const addFieldInteractionListeners = (field: HTMLElement): void => {
     if (!isValidFormField(field)) {
       return;
     };
@@ -191,7 +193,7 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   /**
    * Remove listeners de um campo
    */
-  const removeFieldListeners = (field: HTMLElement): void => {
+  const removeFieldInteractionListeners = (field: HTMLElement): void => {
     if (!isValidFormField(field)) {
       return;
     }
@@ -210,7 +212,7 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   const setupDOMMutationObserver = (form: HTMLFormElement): () => void => {
     // Adiciona listeners aos campos iniciais
     const initialFields = getFormFields(form);
-    initialFields.forEach(addFieldListeners);
+    initialFields.forEach(addFieldInteractionListeners);
 
     // Configura observer para campos dinâmicos
     const observer = new MutationObserver((mutations) => {
@@ -219,15 +221,15 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
 
         mutation.addedNodes.forEach(node => {
           if (node instanceof HTMLElement) {
-            addFieldListeners(node);
-            getFormFields(form).forEach(addFieldListeners);
+            addFieldInteractionListeners(node);
+            getFormFields(form).forEach(addFieldInteractionListeners);
           }
         });
 
         mutation.removedNodes.forEach(node => {
           if (node instanceof HTMLElement) {
-            removeFieldListeners(node);
-            getFormFields(form).forEach(removeFieldListeners);
+            removeFieldInteractionListeners(node);
+            getFormFields(form).forEach(removeFieldInteractionListeners);
           }
         });
       });

@@ -972,12 +972,12 @@ const CurriculumForm = ({
   showModal: (title: string, message: string) => void;
 }) => {
   // --- Tipos para o Currículo ---
-  interface Escolaridade {
+  interface IEscolaridade {
     nivel: string;
     curso: string;
     situacao: string;
   }
-  interface Experiencia {
+  interface IExperiencia {
     nomeEmpresa: string;
     cargo: string;
     inicio: string;
@@ -985,11 +985,11 @@ const CurriculumForm = ({
     atual: boolean;
     atividades: string;
   }
-  interface Conhecimento {
+  interface IConhecimento {
     nivel: string;
     descricao: string;
   }
-  interface DadosAdicionais {
+  interface IDadosAdicionais {
     rg: string;
     orgaoEmissor: string;
     pis: string;
@@ -1014,22 +1014,22 @@ const CurriculumForm = ({
     tamanhoUniforme: string;
     tamanhoCalcado: string;
   }
-  interface CurriculumFormValues {
-    dadosAdicionais?: DadosAdicionais;
-    escolaridades?: Escolaridade[];
-    experiencias?: Experiencia[];
-    conhecimentos?: Conhecimento[];
+  interface ICurriculumFormValues {
+    dadosAdicionais?: IDadosAdicionais;
+    escolaridades?: IEscolaridade[];
+    experiencias?: IExperiencia[];
+    conhecimentos?: IConhecimento[];
   }
 
   // --- Dados Iniciais ---
-  const [initialEscolaridade] = React.useState<Escolaridade[]>([
+  const [initialEscolaridade] = React.useState<IEscolaridade[]>([
     {
       nivel: "Ensino Técnico - Superior",
       curso: "Engenharia de Computação",
       situacao: "Completo",
     },
   ]);
-  const [initialExperiencias] = React.useState<Experiencia[]>([
+  const [initialExperiencias] = React.useState<IExperiencia[]>([
     {
       nomeEmpresa: "Teste de empresa",
       cargo: "Cargo de empresa",
@@ -1047,13 +1047,13 @@ const CurriculumForm = ({
       atividades: "Desenvolvendo soluções para o supermercado BH.",
     },
   ]);
-  const [initialConhecimentos] = React.useState<Conhecimento[]>([
+  const [initialConhecimentos] = React.useState<IConhecimento[]>([
     { nivel: "Intermediário", descricao: "asdasd" },
   ]);
-  const [initialDadosAdicionais] = React.useState<DadosAdicionais>({
+  const [initialDadosAdicionais] = React.useState<IDadosAdicionais>({
     rg: "mg 888888",
     orgaoEmissor: "ssp",
-    pis: "000.00000.00-0",
+    pis: "123.12233.44-5",
     filiacao1: "MINHA MÃE",
     filiacao2: "MEU PAI",
     nacionalidade: "Brasileira",
@@ -1076,27 +1076,14 @@ const CurriculumForm = ({
     tamanhoCalcado: "0",
   });
 
-  const { handleSubmit, formId, getValue, resetSection } =
-    useForm<CurriculumFormValues>("curriculum-form");
+  const { handleSubmit, formId, getValue, resetSection } = useForm<ICurriculumFormValues>("curriculum-form");
 
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const originalEditDataRef = React.useRef<any>(null); // Ref para snapshot
 
-  const {
-    fields: escolaridadeFields,
-    append: appendEscolaridade,
-    remove: removeEscolaridade,
-  } = useList<Escolaridade>(initialEscolaridade);
-  const {
-    fields: experienciaFields,
-    append: appendExperiencia,
-    remove: removeExperiencia,
-  } = useList<Experiencia>(initialExperiencias);
-  const {
-    fields: conhecimentoFields,
-    append: appendConhecimento,
-    remove: removeConhecimento,
-  } = useList<Conhecimento>(initialConhecimentos);
+  const { fields: escolaridadeFields, append: appendEscolaridade, remove: removeEscolaridade } = useList<IEscolaridade>(initialEscolaridade);
+  const { fields: experienciaFields, append: appendExperiencia, remove: removeExperiencia } = useList<IExperiencia>(initialExperiencias);
+  const { fields: conhecimentoFields, append: appendConhecimento, remove: removeConhecimento } = useList<IConhecimento>(initialConhecimentos);
 
   const handleEdit = (id: string, prefix: string) => {
     originalEditDataRef.current = getValue(prefix);
@@ -1108,7 +1095,7 @@ const CurriculumForm = ({
     setEditingId(null);
   };
 
-  const onSubmit = (data: CurriculumFormValues) => {
+  const onSubmit = (data: ICurriculumFormValues) => {
     const cleanData = { ...data /* ... limpeza ... */ };
     showModal(
       "Seção Salva!",
@@ -1219,6 +1206,7 @@ const CurriculumForm = ({
               <input
                 name="dadosAdicionais.pis"
                 className="form-input"
+                type="number"
                 defaultValue={initialDadosAdicionais.pis}
                 readOnly={editingId !== "dadosAdicionais"}
               />
