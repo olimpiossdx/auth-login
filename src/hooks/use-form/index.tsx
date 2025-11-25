@@ -19,27 +19,44 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   /**
    * Lê valores do formulário diretamente do DOM
    */
-  const getValue = React.useCallback((namePrefix?: string): Partial<FV> | FV | any => {
+const getValue = React.useCallback((namePrefix?: string): Partial<FV> | FV | any => {
     const form = formRef.current;
     if (!form) {
-      return namePrefix ? {} : ({} as FV);
+      return namePrefix ? undefined : ({} as FV);
     };
 
-    const formData = {};
+    // 1. Busca todos os campos que coincidem ou começam com o prefixo
+    // Nota: Como getFormFields agora retorna Array, podemos usar métodos de array
     const fields = getFormFields(form, namePrefix);
+    
+    // Se um prefixo foi passado, verifica-se primeiro se existe um campo com ESSE NOME EXATO.
+    // Se existir, queremos o valor dele (ex: "meu-valor"), e não um objeto {}.
+    if (namePrefix) {
+      const exactMatch = fields.find(f => f.name === namePrefix);
+      if (exactMatch) {
+        return parseFieldValue(exactMatch);
+      };
+    };
 
-    // Caso especial: campo único com nome exato do prefixo
-    if (namePrefix && fields.length === 0) {
-      const singleField = form.querySelector<FormField>(`[name="${namePrefix}"]`);
-      if (singleField) {
+    // Caso contrário, construímos o objeto (comportamento padrão para grupos/formulário inteiro)
+    const formData = {};
+
+    if (fields.length === 0 && namePrefix) {
+       // Tenta fallback para busca exata caso getFormFields tenha falhado no seletor de prefixo
+       // (Raro com a lógica atual, mas bom por segurança)
+       const singleField = form.querySelector<FormField>(`[name="${namePrefix}"]`);
+       if (singleField){ 
         return parseFieldValue(singleField);
       };
     };
 
-    // Processa múltiplos campos
     fields.forEach(field => {
       const relativePath = getRelativePath(field.name, namePrefix);
-      if (!relativePath) return;
+      // Se relativePath for null, é porque é o próprio campo raiz (já tratado acima)
+      // ou não pertence ao grupo.
+      if (!relativePath){ 
+        return;
+      };
 
       const value = parseFieldValue(field);
       setNestedValue(formData, relativePath, value);
@@ -144,15 +161,21 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   /**
    * Aplica valor específico ao campo
    */
-  const applyValueToField = (field: FormField, value: any): void => {
-    if (field.type === 'checkbox' && field instanceof HTMLInputElement) {
-      field.checked = Boolean(value);
-    } else if (field.type === 'radio' && field instanceof HTMLInputElement) {
-      field.checked = field.value === String(value);
-    } else {
-      field.value = String(value ?? '');
-    };
-  };
+   const applyValueToField = (field: FormField, value: any): void => {
+     if (field.type === 'checkbox' && field instanceof HTMLInputElement) {
+       field.checked = Boolean(value);
+     } else if (field.type === 'radio' && field instanceof HTMLInputElement) {
+       // Radios comparam string com string
+       field.checked = field.value === String(value);
+     } else {
+       // --- AJUSTE: Garante que 0 não vire string vazia se for number ---
+       if (value === null || value === undefined) {
+          field.value = '';
+       } else {
+          field.value = String(value);
+       }
+     }
+   };
 
   /**
    * Reseta campo para seu valor padrão HTML
@@ -218,30 +241,28 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
     // Configura observer para campos dinâmicos
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.type !== 'childList'){ 
-          return;
-        };
-
+        if (mutation.type !== 'childList') return;
+    
+        // --- CORREÇÃO: Otimização de Performance ---
         mutation.addedNodes.forEach(node => {
-          if (!(node instanceof HTMLElement)) {
-              return;
-            };
-
-            addFieldInteractionListeners(node);
-            getFormFields(form).forEach(addFieldInteractionListeners);
+          if (!(node instanceof HTMLElement)) return;
+    
+          // 1. Verifica se o próprio nó adicionado é um campo
+          addFieldInteractionListeners(node);
+    
+          // 2. Busca campos APENAS dentro do novo nó (ex: um fieldset inserido dinamicamente)
+          // Nota: getFormFields precisa aceitar HTMLElement, veja o ponto 4 abaixo
+          getFormFields(node as any).forEach(addFieldInteractionListeners);
         });
-
+    
         mutation.removedNodes.forEach(node => {
-          if (!(node instanceof HTMLElement)) {
-            return;
-          };
+          if (!(node instanceof HTMLElement)) return;
           
           removeFieldInteractionListeners(node);
-          getFormFields(form).forEach(removeFieldInteractionListeners);
+          getFormFields(node as any).forEach(removeFieldInteractionListeners);
         });
       });
     });
-
     observer.observe(form, { childList: true, subtree: true });
 
     // Função de limpeza
@@ -294,18 +315,25 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   /**
    * Foca no primeiro campo inválido
    */
-  const focusFirstInvalidField = (form: HTMLFormElement): void => {
-    const activeSection = form.querySelector('fieldset:not(:disabled)') || form;
-    const firstInvalid = activeSection.querySelector<HTMLElement>(':invalid');
-    
-    if (!firstInvalid) {
-      return;
-    };
-
-    // Tenta focar em input dentro de container específico
-    const textInput = firstInvalid.closest('.relative')?.querySelector<HTMLElement>('input[type="text"].form-input');
-    textInput?.focus() || firstInvalid.focus();
-  };
+   const focusFirstInvalidField = (form: HTMLFormElement): void => {
+     const activeSection = form.querySelector('fieldset:not(:disabled)') || form;
+     const firstInvalid = activeSection.querySelector<HTMLElement>(':invalid');
+     
+     if (!firstInvalid) return;
+   
+     // --- CORREÇÃO: Suporte para StarRating e componentes customizados ---
+     // Tenta achar um elemento focável visualmente próximo ao input inválido (geralmente irmão ou pai)
+     // Procura: inputs visíveis, selects, textareas ou elementos com tabindex (StarRating)
+     const focusableSibling = firstInvalid.parentElement?.querySelector<HTMLElement>(
+       'input:not([type="hidden"]), select, textarea, [tabindex="0"]'
+     );
+   
+     if (focusableSibling) {
+       focusableSibling.focus();
+     } else {
+       firstInvalid.focus();
+     }
+   };
 
   // ============ EFFECT PRINCIPAL ============
 

@@ -275,28 +275,26 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
         `}
       />
 
-      <select
+    <select
         ref={selectRef}
         id={name}
         name={name}
-        value={selectedValue}
+        // MUDANÇA 1: Usamos defaultValue, não value. O React larga o controle após o mount.
+        defaultValue={initialValue} 
         onChange={() => {}}
         onInvalid={handleInvalid}
         required={required}
         disabled={disabled}
         data-validation={validationKey}
-        className="absolute w-0.5 h-0.5 -m-0.5 p-0 overflow-hidden clip-[rect(0,0,0,0)] border-0 pointer-events-none"
+        className='absolute w-0.5 h-0.5 -m-0.5 p-0 overflow-hidden clip-[rect(0,0,0,0)] border-0 pointer-events-none'
         tabIndex={-1}
         aria-hidden="true"
       >
         <option value="">Selecione...</option>
-        {options.map((suggestion) => {
+        {options.map(suggestion => {
           const { label: l, children: c, ...rest } = suggestion;
-          return (
-            <option key={suggestion.value} {...rest}>
-              {l || c}
-            </option>
-          );
+          // MUDANÇA 2: Garantimos que a prop 'selected' não interfira
+          return <option key={suggestion.value} {...rest}>{l || c}</option>;
         })}
       </select>
 

@@ -1,15 +1,21 @@
-// ============ FUNÇÕES UTILITÁRIAS ============
-import type { FormField } from "./props";
+// utilities.ts
 
-export interface IAnyObject {
-  [key: string]: any;
-};
+import type { IAnyObject, FormField } from './props';
+
+/**
+ * Helper para quebrar caminhos como "user.address" ou "users[0].name" em chaves
+ */
+const splitPath = (path: string) => path.replace(/\]/g, '').split(/[.\[]/);
+
 /**
  * Define um valor em um objeto/array usando caminho (path)
- * Ex: 'user.address.street' → obj.user.address.street = value
+ * Suporta: 'user.address.street' ou 'users[0].name'
  */
 export const setNestedValue = (obj: IAnyObject, path: string, value: any): void => {
-  const keys = path.split('.');
+  // Ignora undefined (comum em radios não checados)
+  if (value === undefined) return;
+
+  const keys = splitPath(path);
   let current = obj;
   
   for (let i = 0; i < keys.length; i++) {
@@ -19,49 +25,56 @@ export const setNestedValue = (obj: IAnyObject, path: string, value: any): void 
     if (isLastKey) {
       current[key] = value;
       return;
-    };
+    }
     
-    // Prepara próxima chave
+    // Prepara próxima chave (cria objeto ou array se não existir)
     const nextKey = keys[i + 1];
-    const nextIsNumber = /^\d+$/.test(nextKey);
+    // Se a próxima chave for numérica, criamos um array, senão um objeto
+    const nextIsNumber = !isNaN(Number(nextKey));
     
-    if (nextIsNumber) {
-      if (!current[key] || !Array.isArray(current[key])) {
-        current[key] = [];
-      };
-    } else {
-      if (!current[key] || typeof current[key] !== 'object' || Array.isArray(current[key])) {
-        current[key] = {};
-      };
-    };
+    if (!current[key]) {
+      current[key] = nextIsNumber ? [] : {};
+    }
     
     current = current[key];
-  };
+  }
 };
 
 /**
  * Obtém valor de objeto aninhado usando caminho
  */
 export const getNestedValue = (obj: IAnyObject, path: string): any => {
-  return path.split('.').reduce((current, key) => {
-    if (current === undefined || current === null) {
-      return undefined;
-    };
-
-    const numKey = parseInt(key, 10);
-    return isNaN(numKey) ? current[key] : Array.isArray(current) ? current[numKey] : undefined;
+  if (!path || !obj) return undefined;
+  
+  const keys = splitPath(path);
+  
+  return keys.reduce((current, key) => {
+    return (current && current[key] !== undefined) ? current[key] : undefined;
   }, obj);
 };
 
 /**
  * Seleciona campos do formulário baseado no prefixo
+ * AJUSTE: Aceita HTMLElement genérico para funcionar com o MutationObserver
  */
-export const getFormFields = (form: HTMLFormElement, namePrefix?: string): NodeListOf<FormField> => {
+export const getFormFields = (root: HTMLElement, namePrefix?: string): FormField[] => {
   const selector = namePrefix
     ? `input[name^="${namePrefix}"], select[name^="${namePrefix}"], textarea[name^="${namePrefix}"]`
     : "input[name], select[name], textarea[name]";
   
-  return form.querySelectorAll(selector);
+  const nodeList = root.querySelectorAll(selector);
+  
+  // Filtra botões que podem ter sido selecionados pelo seletor genérico input[name]
+  // e garante tipagem correta
+  return Array.from(nodeList).filter((el): el is FormField => {
+    return (
+      (el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement) &&
+      el.type !== 'submit' && 
+      el.type !== 'button' && 
+      el.type !== 'reset' &&
+      el.type !== 'image'
+    );
+  });
 };
 
 /**
@@ -69,10 +82,18 @@ export const getFormFields = (form: HTMLFormElement, namePrefix?: string): NodeL
  */
 export const getRelativePath = (fieldName: string, namePrefix?: string): string | null => {
   if (!namePrefix) return fieldName;
+  if (fieldName === namePrefix) return null; // É o próprio campo raiz (objeto simples)
   
   if (fieldName.startsWith(namePrefix)) {
-    const relativePath = fieldName.substring(namePrefix.length);
-    return relativePath.startsWith('.') ? relativePath.substring(1) : relativePath;
+    // Remove o prefixo
+    let relative = fieldName.slice(namePrefix.length);
+    
+    // Remove ponto inicial se houver (ex: prefixo "user", campo "user.name" -> ".name")
+    if (relative.startsWith('.')) relative = relative.slice(1);
+    // Remove colchete inicial se houver (ex: prefixo "users", campo "users[0]" -> "[0]")
+    // Nota: Geralmente mantemos o colchete se for array, mas aqui ajustamos conforme necessidade.
+    
+    return relative;
   }
   
   return null;
@@ -82,13 +103,20 @@ export const getRelativePath = (fieldName: string, namePrefix?: string): string 
  * Converte valor do campo DOM para tipo JavaScript apropriado
  */
 export const parseFieldValue = (field: FormField): any => {
-  if (field.type === 'number') {
-    return field.value === '' ? '' : parseFloat(field.value);
-  };
-  
-  if (field.type === 'checkbox' && field instanceof HTMLInputElement) {
-    return field.checked;
-  };
+  if (field instanceof HTMLInputElement) {
+    if (field.type === 'number') {
+      return field.value === '' ? '' : parseFloat(field.value);
+    }
+    
+    if (field.type === 'checkbox') {
+      return field.checked;
+    }
+
+    if (field.type === 'radio') {
+      // AJUSTE: Radios só retornam valor se estiverem marcados
+      return field.checked ? field.value : undefined;
+    }
+  }
   
   return field.value;
 };

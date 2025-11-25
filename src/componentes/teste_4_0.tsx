@@ -330,18 +330,12 @@ const HybridFormSimple = ({
     comentario: string;
     corFavorita: string;
   }
-  const { handleSubmit, setValidators, formId, getValue, resetSection } =
-    useForm<MyHybridForm>("hybrid-form-simple");
+  const { handleSubmit, setValidators, formId, getValue, resetSection } = useForm<MyHybridForm>("hybrid-form-simple");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const isEditingAny = editingId !== null;
   const originalEditDataRef = React.useRef<any>(null);
 
-  const validarComentario = React.useCallback(
-    (
-      value: any,
-      _field: FormField | null,
-      formValues: MyHybridForm
-    ): ValidationResult => {
+  const validarComentario = React.useCallback((value: any, _: FormField | null, formValues: MyHybridForm ): ValidationResult => {
       const r = Number(formValues.rating);
 
       if (r > 0 && r <= 3 && !value)
@@ -353,23 +347,15 @@ const HybridFormSimple = ({
     []
   );
 
-  const validarCor = React.useCallback(
-    (
-      value: any,
-      _field: FormField | null,
-      __: MyHybridForm
-    ): ValidationResult => {
+  const validarCor = React.useCallback((value: any,_field: FormField | null,__: MyHybridForm ): ValidationResult => {
       if (value === "verde") {
         return { message: "Verde é uma ótima cor!", type: "success" };
-      }
+      };
 
       return undefined;
-    },
-    []
-  );
+    },[]);
 
-  React.useEffect(
-    () => setValidators({ validarComentario, validarCor }),
+  React.useEffect(    () => setValidators({ validarComentario, validarCor }),
     [setValidators, validarComentario, validarCor]
   );
 
@@ -406,6 +392,7 @@ const HybridFormSimple = ({
   const isEditingThis = editingId === "hybridSimple";
   const isEditingOther = isEditingAny && !isEditingThis;
   const prefix = "";
+  console.log('getValue("corFavorita") ', getValue("corFavorita") )
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-xl">
@@ -463,7 +450,7 @@ const HybridFormSimple = ({
             validationKey="validarCor"
             readOnly={!isEditingThis}
             disabled={isEditingOther}
-            initialValue={""}
+            initialValue={getValue("corFavorita") || ""} 
           />
           <div className="mb-4">
             <label className="block mb-1 text-gray-300" htmlFor="comentario">
