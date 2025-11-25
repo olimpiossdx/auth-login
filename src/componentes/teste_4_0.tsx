@@ -1308,6 +1308,7 @@ const Teste: React.FC = () => {
   // Foca no nova tab/formulário-ativo
   const [activeTab, setActiveTab] = React.useState("curriculum"); 
 
+  //cenários de teste do hook useForm com componentes customizados e nativos
   const scenarios = {
     login: <LoginForm showModal={showModal} />,
     registration: <RegistrationForm showModal={showModal} />,
