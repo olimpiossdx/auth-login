@@ -22,9 +22,8 @@ const Experiencias: React.FC<ISectionProps> = ({ editingId, handleCancel, handle
   };
 
   const disabled = isEditingAny && editingId !== 'experiencias';
-  return (<fieldset
-    className='mb-6 border rounded border-gray-700'
-    disabled={disabled}>
+
+  return (<fieldset className='mb-6 border rounded border-gray-700' disabled={disabled}>
     <legend className='text-lg font-semibold text-cyan-400 px-2 w-full flex justify-between items-center'>
       Experiências
       <ActionButtons
@@ -126,12 +125,8 @@ const Experiencias: React.FC<ISectionProps> = ({ editingId, handleCancel, handle
               <label className='block text-sm mb-1'>
                 Atividades Exercidas
               </label>
-              <textarea
-                name={`experiencias.${index}.atividades`}
-                className='form-input h-16 resize-none'
-                defaultValue={field.value.atividades}
-                readOnly={!isEditingThisSection}
-              ></textarea>
+              <textarea name={`experiencias.${index}.atividades`} className='form-input h-16 resize-none'
+                defaultValue={field.value.atividades} readOnly={!isEditingThisSection} />
             </div>
           </div>
         </fieldset>
