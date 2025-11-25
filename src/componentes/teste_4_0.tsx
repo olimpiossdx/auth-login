@@ -1305,8 +1305,9 @@ const CurriculumForm = ({
 // --- Componente Principal e Estilos ---
 
 const Teste: React.FC = () => {
-  const [activeTab, setActiveTab] = React.useState("curriculum"); // Foca no novo formulário
-  // Passa showModal (a função global) para os componentes de cenário
+  // Foca no nova tab/formulário-ativo
+  const [activeTab, setActiveTab] = React.useState("curriculum"); 
+
   const scenarios = {
     login: <LoginForm showModal={showModal} />,
     registration: <RegistrationForm showModal={showModal} />,
@@ -1331,31 +1332,31 @@ const Teste: React.FC = () => {
             tabId="login" 
             label="Nativo" 
             isActive={activeTab === "login"} 
-            onClick={() => setActiveTab("login")} 
+            onClick={setActiveTab} 
           />
           <TabButton 
             tabId="registration" 
             label="Nativo (Custom)" 
             isActive={activeTab === "registration"} 
-            onClick={() => setActiveTab("registration")} 
+            onClick={setActiveTab} 
           />
           <TabButton 
             tabId="hybrid" 
             label="Híbrido Simples" 
             isActive={activeTab === "hybrid"} 
-            onClick={() => setActiveTab("hybrid")} 
+            onClick={setActiveTab} 
           />
           <TabButton 
             tabId="nestedList" 
             label="Lista Aninhada" 
             isActive={activeTab === "nestedList"} 
-            onClick={() => setActiveTab("nestedList")} 
+            onClick={setActiveTab} 
           />
           <TabButton 
             tabId="curriculum" 
             label="Currículo (Edição)" 
             isActive={activeTab === "curriculum"} 
-            onClick={() => setActiveTab("curriculum")} 
+            onClick={setActiveTab} 
           />
         </div>
 
