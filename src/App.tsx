@@ -1,13 +1,11 @@
-import Teste from './componentes/teste'
-import Teste2 from './componentes/teste_4_0'
+import Teste from "./componentes/teste";
+import Teste2 from "./componentes/teste_4_0";
+import Paginas from "./paginas";
 
 function App() {
+  return ( <>
+      <Paginas />
+    </>);
+};
 
-  return (
-    <>
-      <Teste2 />
-    </>
-  )
-}
-
-export default App
+export default App;

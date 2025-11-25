@@ -1,398 +1,11 @@
 import React from "react";
-// Importar createRoot de react-dom/client (necessário para o modal)
-import type {  Root } from "react-dom/client";
 import useForm from "../hooks/use-form";
-
-// --- DEFINIÇÕES DE TIPO ---
-
-type HTMLFieldElements =
-  | HTMLInputElement
-  | HTMLSelectElement
-  | HTMLTextAreaElement;
-
-// Interface para o resultado da validação
-interface IValidationResult {
-  message: string;
-  type: "error" | "warning" | "info" | "success";
-}
-
-// O tipo de retorno da função de validação
-type ValidationResult = string | IValidationResult | true | undefined;
-
-// Define a estrutura para cada sugestão (exportada para uso externo se necessário)
-export interface SuggestionOption
-  extends React.DetailedHTMLProps<
-    React.OptionHTMLAttributes<HTMLOptionElement>,
-    HTMLOptionElement
-  > {
-  value: string;
-  label: string; // Usaremos 'label' para exibição e busca
-}
-
-// --- HOOK useList (Minimalista - Inalterado) ---
-function useList<T = any>(initialState: T[] = []) {
-  const generateId = () => `field-id-${crypto.randomUUID()}`;
-  
-  const [fields, setFields] = React.useState(() =>
-    initialState.map((value) => ({ id: generateId(), value }))
-  );
-  
-  const append = React.useCallback((value: T) => {
-    const newId = generateId();
-    setFields((p) => [...p, { id: newId, value }]);
-  }, []);
-  
-  const remove = React.useCallback((index: number) => {
-    setFields((p) => p.filter((_, i) => i !== index));
-  }, []);
-
-  return { fields, append, remove };
-}
-
-// --- COMPONENTE AUTOCOMPLETE (Definido ANTES de ser usado) ---
-interface AutocompleteProps {
-  name: string;
-  label: string;
-  suggestions: SuggestionOption[];
-  required?: boolean;
-  validationKey?: string;
-  initialValue?: string;
-  readOnly?: boolean;
-  disabled?: boolean;
-}
-const Autocomplete: React.FC<AutocompleteProps> = ({
-  name,
-  label,
-  suggestions = [],
-  required,
-  validationKey,
-  initialValue = "",
-  readOnly,
-  disabled,
-}) => {
-  const findInitialLabel = (): string => {
-    if (!initialValue || !Array.isArray(suggestions)) return "";
-    const found = suggestions.find((s) => s.value === initialValue);
-    return found ? found.label || "" : "";
-  };
-  const [inputValue, setInputValue] = React.useState<string>(
-    findInitialLabel()
-  );
-  const [filteredSuggestions, setFilteredSuggestions] = React.useState<
-    SuggestionOption[]
-  >([]);
-  const [showSuggestions, setShowSuggestions] = React.useState(false);
-  const [selectedValue, setSelectedValue] =
-    React.useState<string>(initialValue);
-  const selectRef = React.useRef<HTMLSelectElement>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const visibleInputRef = React.useRef<HTMLInputElement>(null);
-
-  React.useEffect(() => {
-    setInputValue(findInitialLabel());
-    setSelectedValue(initialValue);
-  }, [initialValue, suggestions]);
-
-  const updateHiddenSelect = (newSelectedValue: string) => {
-    setSelectedValue(newSelectedValue);
-    if (selectRef.current) {
-      selectRef.current.value = newSelectedValue;
-      selectRef.current.dispatchEvent(new Event("change", { bubbles: true }));
-      if (visibleInputRef.current) {
-        selectRef.current.classList.contains("is-touched")
-          ? visibleInputRef.current.classList.add("is-touched")
-          : visibleInputRef.current.classList.remove("is-touched");
-        visibleInputRef.current.setCustomValidity(
-          selectRef.current.validationMessage
-        );
-      }
-    }
-  };
-
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const typedLabel = event.target.value;
-    setInputValue(typedLabel);
-    let finalValue = "";
-    let foundMatch = false;
-    if (typedLabel && Array.isArray(suggestions)) {
-      const filtered = suggestions.filter((s) =>
-        (s.label || "").toLowerCase().includes(typedLabel.toLowerCase())
-      );
-      setFilteredSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-      const exactMatch = suggestions.find(
-        (s) => (s.label || "").toLowerCase() === typedLabel.toLowerCase()
-      );
-      if (exactMatch) {
-        finalValue = exactMatch.value;
-        foundMatch = true;
-      }
-    } else {
-      setFilteredSuggestions([]);
-      setShowSuggestions(false);
-    }
-    if (!foundMatch) finalValue = "";
-    updateHiddenSelect(finalValue);
-  };
-
-  const handleSuggestionClick = (suggestion: SuggestionOption) => {
-    const displayLabel = suggestion.label || "";
-    setInputValue(displayLabel);
-    updateHiddenSelect(suggestion.value);
-    setFilteredSuggestions([]);
-    setShowSuggestions(false);
-    visibleInputRef.current?.focus();
-  };
-
-  const handleContainerBlur = (event: React.FocusEvent<HTMLDivElement>) => {
-    if (
-      containerRef.current &&
-      !containerRef.current.contains(event.relatedTarget as Node)
-    ) {
-      if (selectRef.current) {
-        selectRef.current.dispatchEvent(new Event("blur", { bubbles: true }));
-        if (visibleInputRef.current) {
-          selectRef.current.classList.contains("is-touched")
-            ? visibleInputRef.current.classList.add("is-touched")
-            : visibleInputRef.current.classList.remove("is-touched");
-          visibleInputRef.current.setCustomValidity(
-            selectRef.current.validationMessage
-          );
-        }
-      }
-      setShowSuggestions(false);
-      const isValidLabel =
-        Array.isArray(suggestions) &&
-        suggestions.some((s) => (s.label || "") === inputValue);
-      if (!isValidLabel) {
-        setInputValue(findInitialLabel());
-        updateHiddenSelect(initialValue);
-      }
-    }
-  };
-
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-        const isValidLabel =
-          Array.isArray(suggestions) &&
-          suggestions.some((s) => (s.label || "") === inputValue);
-        if (!isValidLabel && selectedValue !== initialValue) {
-          setInputValue(findInitialLabel());
-          updateHiddenSelect(initialValue);
-        }
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [
-    containerRef,
-    inputValue,
-    suggestions,
-    selectedValue,
-    initialValue,
-    findInitialLabel,
-  ]);
-
-  const effectiveReadOnly = readOnly && !disabled;
-  const effectiveDisabled = disabled;
-
-  return (
-    <div
-      className={`relative mb-4 ${effectiveDisabled ? "opacity-50" : ""}`}
-      ref={containerRef}
-      onBlur={handleContainerBlur}
-    >
-      {" "}
-      <label
-        className="block mb-1 text-gray-300"
-        htmlFor={`autocomplete-${name}`}
-      >
-        {label}
-      </label>{" "}
-      <input
-        ref={visibleInputRef}
-        id={`autocomplete-${name}`}
-        type="text"
-        value={inputValue}
-        onChange={handleInputChange}
-        onFocus={() => {
-          if (
-            !effectiveReadOnly &&
-            !effectiveDisabled &&
-            Array.isArray(suggestions)
-          ) {
-            const filtered = suggestions.filter((s) =>
-              (s.label || "").toLowerCase().includes(inputValue.toLowerCase())
-            );
-            setFilteredSuggestions(filtered);
-            setShowSuggestions(true);
-          }
-        }}
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={showSuggestions && filteredSuggestions.length > 0}
-        aria-controls={`${name}-suggestions`}
-        className="form-input"
-        autoComplete="off"
-        readOnly={effectiveReadOnly}
-        disabled={effectiveDisabled}
-      />{" "}
-      <select
-        ref={selectRef}
-        id={name}
-        name={name}
-        value={selectedValue}
-        onChange={() => {}}
-        required={required}
-        data-validation={validationKey}
-        className="absolute w-[1px] h-[1px] -m-[1px] p-0 overflow-hidden clip-[rect(0,0,0,0)] border-0"
-        tabIndex={-1}
-        aria-hidden="true"
-        disabled={effectiveDisabled}
-      >
-        {" "}
-        <option value=""></option>
-        {Array.isArray(suggestions) &&
-          suggestions.map((suggestion) => {
-            const { label: sLabel, children: sChild, ...sProps } = suggestion;
-            return (
-              <option
-                key={suggestion.value}
-                {...sProps}
-              >
-                {sLabel || sChild}
-              </option>
-            );
-          })}{" "}
-      </select>{" "}
-      {showSuggestions &&
-        filteredSuggestions.length > 0 &&
-        !effectiveReadOnly &&
-        !effectiveDisabled && (
-          <ul
-            id={`${name}-suggestions`}
-            role="listbox"
-            className="autocomplete-suggestions"
-          >
-            {" "}
-            {filteredSuggestions.map((suggestion, index) => {
-              const displayLabel = suggestion.label || "";
-              return (
-                <li
-                  key={suggestion.value}
-                  id={`${name}-suggestion-${index}`}
-                  role="option"
-                  aria-selected={selectedValue === suggestion.value}
-                  aria-disabled={suggestion.disabled}
-                  className={`autocomplete-suggestion-item ${
-                    suggestion.disabled ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                  onMouseDown={(e) => {
-                    if (suggestion.disabled) {
-                      e.preventDefault();
-                      return;
-                    }
-                    e.preventDefault();
-                    handleSuggestionClick(suggestion);
-                  }}
-                >
-                  {displayLabel}
-                </li>
-              );
-            })}{" "}
-          </ul>
-        )}{" "}
-    </div>
-  );
-};
-
-// --- Componente StarRating ---
-const StarRating = ({
-  name,
-  label,
-  required,
-  readOnly,
-  disabled,
-}: {
-  name: string;
-  label: string;
-  required?: boolean;
-  readOnly?: boolean;
-  disabled?: boolean;
-}) => {
-  const [currentValue, setCurrentValue] = React.useState<number | string>("");
-  const [hoverValue, setHoverValue] = React.useState(0);
-  const inputRef = React.useRef<HTMLInputElement>(null);
-  const effectiveDisabled = disabled || readOnly;
-  const handleClick = (value: number) => {
-    if (effectiveDisabled) return;
-    const newValue = value === currentValue ? "" : value;
-    setCurrentValue(newValue);
-    if (inputRef.current) {
-      inputRef.current.value = String(newValue);
-      inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  };
-  const handleBlur = () => {
-    if (effectiveDisabled) return;
-    inputRef.current?.dispatchEvent(new Event("blur", { bubbles: true }));
-  };
-  const displayValue = Number(currentValue) || 0;
-  return (
-    <div className={`relative mb-4 ${effectiveDisabled ? "opacity-50" : ""}`}>
-      <label className="block mb-1 text-gray-300" htmlFor={name}>
-        {label}
-      </label>
-      <div
-        className={`star-display flex focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-md ${
-          effectiveDisabled ? "pointer-events-none" : ""
-        }`}
-        onBlur={handleBlur}
-        tabIndex={effectiveDisabled ? -1 : 0}
-      >
-        {[1, 2, 3, 4, 5].map((value) => (
-          <svg
-            key={value}
-            onClick={() => handleClick(value)}
-            onMouseOver={() => setHoverValue(effectiveDisabled ? 0 : value)}
-            onMouseOut={() => setHoverValue(0)}
-            className={`w-8 h-8 ${
-              effectiveDisabled ? "" : "cursor-pointer"
-            } transition-colors ${
-              (hoverValue || displayValue) >= value
-                ? "text-yellow-400"
-                : "text-gray-600"
-            }`}
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-        ))}
-      </div>
-      <input
-        ref={inputRef}
-        id={name}
-        name={name}
-        type="number"
-        value={currentValue}
-        onChange={() => {}}
-        required={required}
-        min={required ? 1 : 0}
-        style={{ appearance: "none" }}
-        className="absolute opacity-0 w-[250px] h-[1px] m-0 p-0 border-0"
-        max={5}
-        tabIndex={-1}
-        disabled={disabled}
-      />
-    </div>
-  );
-};
+import showModal from "./modal/hook";
+import type { IModalHandle, IModalOptions } from "./modal/types";
+import useList from "../hooks/list";
+import type { FormField, ValidationResult } from "../hooks/use-form/props";
+import Autocomplete, { type IOption } from "./autocomplete";
+import StarRating from "./start-rating";
 
 // --- Componente AddressItem ---
 interface Address {
@@ -465,8 +78,7 @@ const AddressList: React.FC<AddressListProps> = ({
               style={{ width: "20px", height: "20px" }}
               disabled={!isEditing || isDisabled}
             >
-              {" "}
-              X{" "}
+              X
             </button>
           )}
         </div>
@@ -549,8 +161,7 @@ const ContactItem: React.FC<ContactItemProps> = ({
           title="Remover Contato"
           disabled={isDisabled || isEditing}
         >
-          {" "}
-          X{" "}
+          X
         </button>
       </div>
       <AddressList
@@ -569,23 +180,28 @@ const ContactItem: React.FC<ContactItemProps> = ({
 const LoginForm = ({
   showModal,
 }: {
-  showModal: (title: string, message: string) => void;
+  showModal: (options: IModalOptions) => IModalHandle;
 }) => {
   interface LoginFormValues {
     email: string;
     senha?: string;
   }
   const { handleSubmit, formId } = useForm<LoginFormValues>("login-form");
-  const onSubmit = (data: LoginFormValues) =>
-    showModal("Login bem-sucedido!", "Dados: " + JSON.stringify(data));
+  const onSubmit = (data: LoginFormValues) => {
+    showModal({
+      title: "Login bem-sucedido!",
+      content: () => <div>Dados: {JSON.stringify(data)}</div>,
+      closeOnBackdropClick: false, // Obriga interação
+      onClose: () => console.log("Fechou!"), // Callback
+    });
+  };
+
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-xl">
-      {" "}
       <h3 className="text-xl font-bold mb-4 text-cyan-400">
         1. Campos Nativos
-      </h3>{" "}
+      </h3>
       <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
-        {" "}
         <div className="mb-4">
           <label className="block mb-1 text-gray-300" htmlFor="email">
             Email
@@ -598,7 +214,7 @@ const LoginForm = ({
             required
             pattern="^\S+@\S+$"
           />
-        </div>{" "}
+        </div>
         <div className="mb-4">
           <label className="block mb-1 text-gray-300" htmlFor="senha">
             Senha
@@ -611,14 +227,14 @@ const LoginForm = ({
             required
             minLength={6}
           />
-        </div>{" "}
+        </div>
         <button
           type="submit"
           className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded transition-colors"
         >
           Entrar
-        </button>{" "}
-      </form>{" "}
+        </button>
+      </form>
     </div>
   );
 };
@@ -627,17 +243,23 @@ const LoginForm = ({
 const RegistrationForm = ({
   showModal,
 }: {
-  showModal: (title: string, message: string) => void;
+  showModal: (options: IModalOptions) => IModalHandle;
 }) => {
   interface RegFormValues {
     senha?: string;
     confirmarSenha?: string;
   }
-  const { handleSubmit, setValidators, formId } = useForm<RegFormValues>("reg-form");
-  const validarSenha = React.useCallback((value: any, _: HTMLFieldElements | null, formValues: RegFormValues): ValidationResult =>
+  const { handleSubmit, setValidators, formId } =
+    useForm<RegFormValues>("reg-form");
+  const validarSenha = React.useCallback(
+    (
+      value: any,
+      _: FormField | null,
+      formValues: RegFormValues
+    ): ValidationResult =>
       value !== formValues.senha
         ? { message: "As senhas não correspondem", type: "error" }
-        : true,
+        : undefined,
     []
   );
 
@@ -645,16 +267,22 @@ const RegistrationForm = ({
     () => setValidators({ validarSenha }),
     [setValidators, validarSenha]
   );
-  const onSubmit = (data: RegFormValues) =>
-    showModal("Cadastro realizado!", "Dados: " + JSON.stringify(data));
+  const onSubmit = (data: RegFormValues) => {
+    showModal({
+      title: "Cadastro realizado!",
+      content: () => <div>Dados: {JSON.stringify(data)}</div>,
+      closeOnBackdropClick: false, // Obriga interação
+      contentProps: { className: "whitespace-pre-wrap" },
+      onClose: () => console.log("Fechou!"), // Callback
+    });
+  };
+
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-xl">
-      {" "}
       <h3 className="text-xl font-bold mb-4 text-cyan-400">
         2. Validação Customizada (Nativo)
-      </h3>{" "}
+      </h3>
       <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
-        {" "}
         <div className="mb-4">
           <label className="block mb-1 text-gray-300" htmlFor="reg_senha">
             Senha
@@ -666,7 +294,7 @@ const RegistrationForm = ({
             className="form-input"
             required
           />
-        </div>{" "}
+        </div>
         <div className="mb-4">
           <label className="block mb-1 text-gray-300" htmlFor="confirmarSenha">
             Confirmar Senha
@@ -679,14 +307,14 @@ const RegistrationForm = ({
             required
             data-validation="validarSenha"
           />
-        </div>{" "}
+        </div>
         <button
           type="submit"
           className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded"
         >
           Cadastrar
-        </button>{" "}
-      </form>{" "}
+        </button>
+      </form>
     </div>
   );
 };
@@ -695,45 +323,68 @@ const RegistrationForm = ({
 const HybridFormSimple = ({
   showModal,
 }: {
-  showModal: (title: string, message: string) => void;
+  showModal: (options: IModalOptions) => IModalHandle;
 }) => {
   interface MyHybridForm {
     rating: number | "";
     comentario: string;
     corFavorita: string;
   }
-  const { handleSubmit, setValidators, formId, getValue, resetSection } = useForm<MyHybridForm>("hybrid-form-simple");
+  const { handleSubmit, setValidators, formId, getValue, resetSection } =
+    useForm<MyHybridForm>("hybrid-form-simple");
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const isEditingAny = editingId !== null;
   const originalEditDataRef = React.useRef<any>(null);
 
-  const validarComentario = React.useCallback((value: any, _field: HTMLFieldElements | null, formValues: MyHybridForm): ValidationResult => {
+  const validarComentario = React.useCallback(
+    (
+      value: any,
+      _field: FormField | null,
+      formValues: MyHybridForm
+    ): ValidationResult => {
       const r = Number(formValues.rating);
 
       if (r > 0 && r <= 3 && !value)
         return { message: "O comentário é obrigatório...", type: "error" };
       if (value && value.length > 0 && value.length < 5)
         return { message: "Comentário curto.", type: "warning" };
-      return true;
-  },[]);
+      return undefined;
+    },
+    []
+  );
 
-  const validarCor = React.useCallback((value: any, _field: HTMLFieldElements | null, __: MyHybridForm): ValidationResult => {
-   if (value === "verde"){
-     return { message: "Verde é uma ótima cor!", type: "success" };
-   }
-   
-   return true;
-  },[]);
+  const validarCor = React.useCallback(
+    (
+      value: any,
+      _field: FormField | null,
+      __: MyHybridForm
+    ): ValidationResult => {
+      if (value === "verde") {
+        return { message: "Verde é uma ótima cor!", type: "success" };
+      }
 
-  React.useEffect(() => setValidators({ validarComentario, validarCor }),[setValidators, validarComentario, validarCor]);
+      return undefined;
+    },
+    []
+  );
+
+  React.useEffect(
+    () => setValidators({ validarComentario, validarCor }),
+    [setValidators, validarComentario, validarCor]
+  );
 
   const onSubmit = (data: MyHybridForm) => {
-    showModal("Form Híbrido Salvo!", "Dados: " + JSON.stringify(data));
+    showModal({
+      title: "Form Híbrido Salvo!",
+      content: () => <div>Dados: {JSON.stringify(data)}</div>,
+      closeOnBackdropClick: false, // Obriga interação
+      onClose: () => console.log("Fechou!"), // Callback
+    });
     setEditingId(null);
     originalEditDataRef.current = null;
   };
 
-  const cores: SuggestionOption[] = [
+  const cores: IOption[] = [
     { value: "vermelho", label: "Vermelho" },
     { value: "azul", label: "Azul" },
     { value: "verde", label: "Verde" },
@@ -761,7 +412,6 @@ const HybridFormSimple = ({
       <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
         <fieldset disabled={isEditingOther}>
           <legend className="text-xl font-bold mb-4 text-cyan-400 flex justify-between items-center w-full">
-            {" "}
             3. Híbrido (Rating + Autocomplete)
             <div>
               {!isEditingThis && (
@@ -808,7 +458,7 @@ const HybridFormSimple = ({
           <Autocomplete
             name="corFavorita"
             label="Cor Favorita (obrigatório)"
-            suggestions={cores}
+            options={cores}
             required
             validationKey="validarCor"
             readOnly={!isEditingThis}
@@ -840,18 +490,27 @@ const HybridFormSimple = ({
 const NestedListForm = ({
   showModal,
 }: {
-  showModal: (title: string, message: string) => void;
+  showModal: (options: IModalOptions) => IModalHandle;
 }) => {
   interface MyNestedListForm {
     contatos?: Contato[];
   }
-  const { handleSubmit, setValidators, formId, getValue, resetSection } = useForm<MyNestedListForm>("nested-list-form");
-  const { fields: contactFields, append: appendContact, remove: removeContact} = useList<Contato>([]);
+  const { handleSubmit, setValidators, formId, getValue, resetSection } =
+    useForm<MyNestedListForm>("nested-list-form");
+  const {
+    fields: contactFields,
+    append: appendContact,
+    remove: removeContact,
+  } = useList<Contato>([]);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const isEditingAny = editingId !== null;
   const originalEditDataRef = React.useRef<any>(null);
 
-  const validarCidade = React.useCallback((value: any, field: HTMLFieldElements | null, formValues: MyNestedListForm): ValidationResult => {
+  const validarCidade = React.useCallback(
+    (value: any,
+      field: FormField | null,
+      formValues: MyNestedListForm
+    ): ValidationResult => {
       const m = field?.name.match(/contatos\.(\d+)\.enderecos\.(\d+)\.cidade/);
       if (m) {
         const cI = parseInt(m[1], 10);
@@ -863,15 +522,23 @@ const NestedListForm = ({
             type: "error",
           };
       }
-      return true;
-    },[]);
+      return undefined;
+    },
+    []
+  );
 
   React.useEffect(() => {
     setValidators({ validarCidade });
   }, [setValidators, validarCidade]);
 
   const onSubmit = (data: MyNestedListForm) => {
-    showModal("Item Salvo!", "Dados: " + JSON.stringify(data, null, 2));
+    showModal({
+      title: "Item Salvo",
+      content: () => <div>Dados: {JSON.stringify(data, null, 2)}</div>,
+      closeOnBackdropClick: false, // Obriga interação
+      onClose: () => console.log("Fechou!"), // Callback
+    });
+
     setEditingId(null);
     originalEditDataRef.current = null;
   };
@@ -969,7 +636,7 @@ const NestedListForm = ({
 const CurriculumForm = ({
   showModal,
 }: {
-  showModal: (title: string, message: string) => void;
+  showModal: (options: IModalOptions) => IModalHandle;
 }) => {
   // --- Tipos para o Currículo ---
   interface IEscolaridade {
@@ -1076,14 +743,27 @@ const CurriculumForm = ({
     tamanhoCalcado: "0",
   });
 
-  const { handleSubmit, formId, getValue, resetSection } = useForm<ICurriculumFormValues>("curriculum-form");
+  const { handleSubmit, formId, getValue, resetSection } =
+    useForm<ICurriculumFormValues>("curriculum-form");
 
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const originalEditDataRef = React.useRef<any>(null); // Ref para snapshot
 
-  const { fields: escolaridadeFields, append: appendEscolaridade, remove: removeEscolaridade } = useList<IEscolaridade>(initialEscolaridade);
-  const { fields: experienciaFields, append: appendExperiencia, remove: removeExperiencia } = useList<IExperiencia>(initialExperiencias);
-  const { fields: conhecimentoFields, append: appendConhecimento, remove: removeConhecimento } = useList<IConhecimento>(initialConhecimentos);
+  const {
+    fields: escolaridadeFields,
+    append: appendEscolaridade,
+    remove: removeEscolaridade,
+  } = useList<IEscolaridade>(initialEscolaridade);
+  const {
+    fields: experienciaFields,
+    append: appendExperiencia,
+    remove: removeExperiencia,
+  } = useList<IExperiencia>(initialExperiencias);
+  const {
+    fields: conhecimentoFields,
+    append: appendConhecimento,
+    remove: removeConhecimento,
+  } = useList<IConhecimento>(initialConhecimentos);
 
   const handleEdit = (id: string, prefix: string) => {
     originalEditDataRef.current = getValue(prefix);
@@ -1097,10 +777,15 @@ const CurriculumForm = ({
 
   const onSubmit = (data: ICurriculumFormValues) => {
     const cleanData = { ...data /* ... limpeza ... */ };
-    showModal(
-      "Seção Salva!",
-      "Dados do Formulário Inteiro: " + JSON.stringify(cleanData, null, 2)
-    );
+
+    showModal({
+      title: "Seção Salva!",
+      content: () => (
+        <div>{`Dados do Formulário Inteiro: ${JSON.stringify(cleanData, null, 2)}`}</div>
+      ),
+      onClose: () => console.log("Fechou!"), // Callback
+    });
+
     setEditingId(null);
     originalEditDataRef.current = null;
   };
@@ -1112,13 +797,8 @@ const CurriculumForm = ({
     onEdit: () => void;
     isOtherEditing: boolean;
     isEditingThis: boolean;
-  }> = ({
-    onCancel,
-    onEdit,
-    isOtherEditing,
-    isEditingThis,
-  }) => (
-    <div className="flex justify-end gap-2 mt-2 flex-shrink-0">
+  }> = ({ onCancel, onEdit, isOtherEditing, isEditingThis }) => (
+    <div className="flex justify-end gap-2 mt-2 shrink-0">
       {!isEditingThis && (
         <button
           type="button"
@@ -1130,8 +810,7 @@ const CurriculumForm = ({
               : "bg-blue-600 hover:bg-blue-700 text-white"
           }`}
         >
-          {" "}
-          Editar{" "}
+          Editar
         </button>
       )}
       {isEditingThis && (
@@ -1141,15 +820,13 @@ const CurriculumForm = ({
             onClick={onCancel}
             className="py-1 px-3 rounded text-sm font-medium bg-gray-600 hover:bg-gray-700 text-white"
           >
-            {" "}
-            Cancelar{" "}
+            Cancelar
           </button>
           <button
             type="submit"
             className="py-1 px-3 rounded text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
           >
-            {" "}
-            Salvar{" "}
+            Salvar
           </button>
         </>
       )}
@@ -1167,7 +844,6 @@ const CurriculumForm = ({
           disabled={isEditingAny && editingId !== "dadosAdicionais"}
         >
           <legend className="text-lg font-semibold text-cyan-400 px-2 flex justify-between items-center w-full">
-            {" "}
             Dados Adicionais
             <ActionButtons
               sectionId="dadosAdicionais"
@@ -1290,7 +966,7 @@ const CurriculumForm = ({
                       initialDadosAdicionais.parenteEmpresa === "true"
                     }
                     disabled={editingId !== "dadosAdicionais"}
-                  />{" "}
+                  />
                   Sim
                 </label>
                 <label>
@@ -1302,7 +978,7 @@ const CurriculumForm = ({
                       initialDadosAdicionais.parenteEmpresa === "false"
                     }
                     disabled={editingId !== "dadosAdicionais"}
-                  />{" "}
+                  />
                   Não
                 </label>
               </div>
@@ -1344,8 +1020,7 @@ const CurriculumForm = ({
                       className={`absolute top-2 right-2 py-0.5 px-2 rounded text-xs bg-red-600 hover:bg-red-700 text-white`}
                       title="Remover"
                     >
-                      {" "}
-                      X{" "}
+                      X
                     </button>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
@@ -1444,8 +1119,7 @@ const CurriculumForm = ({
                       className={`absolute top-2 right-2 py-0.5 px-2 rounded text-xs bg-red-600 hover:bg-red-700 text-white`}
                       title="Remover"
                     >
-                      {" "}
-                      X{" "}
+                      X
                     </button>
                   )}
                   <div className="space-y-2 mt-1">
@@ -1514,7 +1188,7 @@ const CurriculumForm = ({
                             defaultChecked={field.value.atual}
                             disabled={!isEditingThisSection}
                             className="mr-1"
-                          />{" "}
+                          />
                           Emprego Atual
                         </label>
                       </div>
@@ -1587,8 +1261,7 @@ const CurriculumForm = ({
                       className={`absolute top-2 right-2 py-0.5 px-2 rounded text-xs bg-red-600 hover:bg-red-700 text-white`}
                       title="Remover"
                     >
-                      {" "}
-                      X{" "}
+                      X
                     </button>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
@@ -1640,86 +1313,6 @@ const CurriculumForm = ({
   );
 };
 
-// --- Funções e Componentes Utilitários ---
-
-// Armazena a instância da root do React 18 e o elemento root
-let modalRootInstance: Root | null = null;
-let modalRootEl: HTMLElement | null = null;
-
-// Modal customizado para substituir o alert()
-const CustomModal: React.FC<{
-  title: string;
-  message: string;
-  onClose: () => void;
-}> = ({ title, message, onClose }) => {
-  /* ... (JSX do modal inalterado com scroll) ... */
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75"
-      onClick={onClose}
-    >
-      {" "}
-      <div
-        className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl flex flex-col"
-        style={{ maxHeight: "90vh" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {" "}
-        <div className="p-4 border-b border-gray-700 flex-shrink-0">
-          {" "}
-          <h2 className="text-xl font-bold text-cyan-400">{title}</h2>{" "}
-        </div>{" "}
-        <div className="p-6 overflow-y-auto flex-grow">
-          {" "}
-          <p className="text-gray-300 whitespace-pre-wrap break-words">
-            {message}
-          </p>{" "}
-        </div>{" "}
-        <div className="p-4 border-t border-gray-700 flex-shrink-0">
-          {" "}
-          <button
-            onClick={onClose}
-            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded transition-colors"
-          >
-            {" "}
-            Fechar{" "}
-          </button>{" "}
-        </div>{" "}
-      </div>{" "}
-    </div>
-  );
-};
-
-// Função para renderizar/remover o modal (Revertida para window.ReactDOM)
-const showModal = (title: string, message: string) => {
-  /* ... (inalterado) ... */
-  if (!modalRootEl) {
-    modalRootEl = document.getElementById("modal-root");
-    if (!modalRootEl) {
-      modalRootEl = document.createElement("div");
-      modalRootEl.id = "modal-root";
-      document.body.appendChild(modalRootEl);
-    }
-  }
-  const reactDOM = (window as any).ReactDOM;
-  if (!reactDOM || typeof reactDOM.createRoot !== "function") {
-    console.error("ReactDOM.createRoot não está disponível globalmente.");
-    alert(`${title}\n\n${message}`);
-    return;
-  }
-  const { createRoot } = reactDOM;
-  if (!modalRootInstance) modalRootInstance = createRoot(modalRootEl);
-  const closeModal = () => {
-    if (modalRootInstance) {
-      modalRootInstance.unmount();
-      modalRootInstance = null;
-    }
-  };
-  modalRootInstance!.render(
-    <CustomModal title={title} message={message} onClose={closeModal} />
-  );
-};
-
 // --- Componente Principal e Estilos ---
 
 const Teste: React.FC = () => {
@@ -1745,8 +1338,7 @@ const Teste: React.FC = () => {
           : "bg-gray-700 text-gray-300 hover:bg-gray-600"
       }`}
     >
-      {" "}
-      {label}{" "}
+      {label}
     </button>
   );
 

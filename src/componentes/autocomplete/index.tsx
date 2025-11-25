@@ -1,235 +1,330 @@
-import React from 'react';
+import React from "react";
 
-// Define a estrutura para cada sugestão, estendendo as props de <option>
-export interface IOption extends React.DetailedHTMLProps<React.OptionHTMLAttributes<HTMLOptionElement>, HTMLOptionElement> {
+export interface IOption
+  extends React.DetailedHTMLProps<
+    React.OptionHTMLAttributes<HTMLOptionElement>,
+    HTMLOptionElement
+  > {
   value: string;
   label: string;
-};
+}
 
 export interface AutocompleteProps {
   name: string;
   label: string;
-  // Agora espera um array da nova interface SuggestionOption
   options: IOption[];
+  readOnly?: boolean;
+  disabled?: boolean;
   required?: boolean;
-  validationKey?: string; // Para validação customizada via data-validation
-  initialValue?: string; // Refere-se ao VALUE inicial
+  validationKey?: string;
+  initialValue?: string;
 }
 
 const Autocomplete: React.FC<AutocompleteProps> = ({
   name,
   label,
-  options = [], // Garante que seja um array
+  options = [],
   required,
   validationKey,
   initialValue = "",
+  disabled,
+  readOnly,
 }) => {
-  // Encontra o label inicial correspondente ao initialValue
-  const findInitialLabel = (): string => {
-    if (!initialValue) return "";
-    // Prioriza o 'label' que definimos, mas usa 'children' como fallback se 'label' não existir
-    const found = options.find(s => s.value === initialValue);
-    return found ? (found.label || (typeof found.children === 'string' ? found.children : "")) : "";
-  };
+  // --- HELPERS ---
+  const useGetOptionLabel = React.useCallback((option: IOption) =>option.label || (typeof option.children === "string" ? option.children : ""), []);
 
-  const [inputValue, setInputValue] = React.useState<string>(findInitialLabel()); // Estado para o texto visível (label)
-  const [filteredSuggestions, setFilteredSuggestions] = React.useState<IOption[]>([]);
+  const useFindInitialLabel = React.useCallback((): string => {
+    if (!initialValue) return "";
+    const found = options.find((s) => s.value === initialValue);
+    return found ? useGetOptionLabel(found) : "";
+  }, [initialValue, options, useGetOptionLabel]);
+
+  // --- ESTADOS ---
+  const [inputValue, setInputValue] = React.useState<string>(useFindInitialLabel());
   const [showSuggestions, setShowSuggestions] = React.useState(false);
-  const [selectedValue, setSelectedValue] = React.useState<string>(initialValue); // Estado para o valor real (value)
+  const [selectedValue, setSelectedValue] = React.useState<string>(initialValue);
+  const [activeIndex, setActiveIndex] = React.useState<number>(-1);
+
+  // --- REFS ---
   const selectRef = React.useRef<HTMLSelectElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const visibleInputRef = React.useRef<HTMLInputElement>(null);
+  const listRef = React.useRef<HTMLUListElement>(null);
 
-  // Atualiza o select escondido e dispara eventos
+  // NOVA REF: Controla se o blur deve ser ignorado
+  const ignoreBlurRef = React.useRef(false);
+
+  // --- SINCRONIA INICIAL ---
+  React.useEffect(() => {
+    setSelectedValue(initialValue);
+    setInputValue(useFindInitialLabel());
+  }, [initialValue, useFindInitialLabel]);
+
+  // Limpeza de erro baseada em estado
+  React.useEffect(() => {
+    if (visibleInputRef.current && selectedValue) {
+      visibleInputRef.current.setCustomValidity("");
+    }
+  }, [selectedValue]);
+
+  // --- ATUALIZAÇÃO DO SELECT OCULTO ---
   const updateHiddenSelect = (newSelectedValue: string) => {
     setSelectedValue(newSelectedValue);
 
     if (selectRef.current) {
-      selectRef.current.value = newSelectedValue;
-      selectRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+      const nativeSelect = selectRef.current;
+      nativeSelect.value = newSelectedValue;
+      nativeSelect.dispatchEvent(new Event("change", { bubbles: true }));
 
-      // Sincroniza estado visual
-      if (visibleInputRef.current) {
-        if (selectRef.current.classList.contains('is-touched')) {
-          visibleInputRef.current.classList.add('is-touched');
-        } else {
-          visibleInputRef.current.classList.remove('is-touched');
-        }
-        visibleInputRef.current.setCustomValidity(selectRef.current.validationMessage);
+      if (
+        visibleInputRef.current &&
+        nativeSelect.classList.contains("is-touched")
+      ) {
+        visibleInputRef.current.classList.add("is-touched");
       }
     }
   };
 
-  // Lógica para filtrar sugestões baseado no LABEL
+  // --- FILTRO ---
+  const useFilteredSuggestions = React.useMemo(() => {
+    if (!inputValue && !showSuggestions) {
+      return options;
+    };
+
+    return options.filter((suggestion) =>
+      useGetOptionLabel(suggestion)
+        .toLowerCase()
+        .includes(inputValue.toLowerCase())
+    );
+  }, [options, inputValue, showSuggestions, useGetOptionLabel]);
+
+  // --- HANDLER DE INPUT ---
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const typedLabel = event.target.value;
-    setInputValue(typedLabel);
+    const { value } = event.target;
+    setInputValue(value);
+    setShowSuggestions(true);
+    setActiveIndex(-1);
 
-    let finalValue = "";
-    let foundMatch = false;
-
-    if (typedLabel && Array.isArray(options)) {
-      // Filtra usando 'label' ou 'children' como fallback
-      const filtered = options.filter(suggestion =>
-        (suggestion.label || (typeof suggestion.children === 'string' ? suggestion.children : ""))
-          .toLowerCase().includes(typedLabel.toLowerCase())
-      );
-      setFilteredSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-
-      // Verifica se o texto digitado corresponde exatamente a um label
-      const exactMatch = options.find(s => (s.label || (typeof s.children === 'string' ? s.children : "")).toLowerCase() === typedLabel.toLowerCase());
-      if (exactMatch) {
-        finalValue = exactMatch.value;
-        foundMatch = true;
-      }
-
-    } else {
-      setFilteredSuggestions([]);
-      setShowSuggestions(false);
-    }
-    if (!foundMatch) {
-      finalValue = "";
-    }
-    updateHiddenSelect(finalValue);
-  };
-
-  // Seleciona uma sugestão (objeto SuggestionOption)
-  const handleSuggestionClick = (suggestion: IOption) => {
-    const displayLabel = suggestion.label || (typeof suggestion.children === 'string' ? suggestion.children : "");
-    setInputValue(displayLabel); // Mostra o label no input visível
-    updateHiddenSelect(suggestion.value); // Define o value no select escondido
-    setFilteredSuggestions([]);
-    setShowSuggestions(false);
     if (visibleInputRef.current) {
+      visibleInputRef.current.setCustomValidity("");
+    }
+    if (selectedValue !== "") {
+      updateHiddenSelect("");
+    }
+  };
+
+  // --- SELEÇÃO (Ajustado com ignoreBlurRef) ---
+  const handleSelectOption = (suggestion: IOption) => {
+    if (suggestion.disabled) {
+      return;
+    };
+
+    const displayLabel = useGetOptionLabel(suggestion);
+
+    // Atualiza estados
+    setInputValue(displayLabel);
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+
+    updateHiddenSelect(suggestion.value);
+
+    if (visibleInputRef.current) {
+      // Atualiza visualmente agora (para garantir que o usuário veja o texto)
+      visibleInputRef.current.value = displayLabel;
+      visibleInputRef.current.setCustomValidity("");
+
+      // TRUQUE DO BLUR:
+      // 1. Levantamos a bandeira para o handleBlur não rodar a limpeza
+      ignoreBlurRef.current = true;
+
+      // 2. Disparamos o blur (remove o balão de erro) e voltamos o foco
+      visibleInputRef.current.blur();
       visibleInputRef.current.focus();
+
+      // 3. Baixamos a bandeira logo depois que o ciclo de eventos passar
+      setTimeout(() => {
+        ignoreBlurRef.current = false;
+      }, 50);
     }
   };
 
-  // Lida com o blur (dispara o evento para o useForm)
+  // --- INTERCEPTADOR DE ERRO ---
+  const handleInvalid = (event: React.FormEvent<HTMLSelectElement>) => {
+    event.preventDefault();
+    if (visibleInputRef.current) {
+      visibleInputRef.current.setCustomValidity(event.currentTarget.validationMessage);
+      visibleInputRef.current.reportValidity();
+    }
+  };
+
+  // --- BLUR (Ajustado com ignoreBlurRef) ---
   const handleBlur = (event: React.FocusEvent<HTMLDivElement>) => {
-    if (containerRef.current && !containerRef.current.contains(event.relatedTarget as Node)) {
-      if (selectRef.current) {
-        selectRef.current.dispatchEvent(new Event('blur', { bubbles: true }));
+    // 1. SE A BANDEIRA ESTIVER LEVANTADA, NÃO FAZ NADA.
+    // Isso impede que o nosso truque de limpar o balão apague os dados.
+    if (ignoreBlurRef.current) {
+      return;
+    }
+
+    if (
+      containerRef.current &&
+      containerRef.current.contains(event.relatedTarget as Node)
+    ) {
+      return;
+    }
+
+    if (selectRef.current)
+      selectRef.current.dispatchEvent(new Event("blur", { bubbles: true }));
+    setShowSuggestions(false);
+
+    // Validação Strict Mode
+    // Nota: Usamos visibleInputRef.current.value aqui para pegar o valor mais atual do DOM
+    // caso o React State ainda esteja pendente.
+    const currentText = visibleInputRef.current
+      ? visibleInputRef.current.value
+      : inputValue;
+    const optionMatch = options.find(
+      (s) => useGetOptionLabel(s).toLowerCase() === currentText.toLowerCase()
+    );
+
+    if (optionMatch) {
+      if (currentText !== useGetOptionLabel(optionMatch)) {
+        setInputValue(useGetOptionLabel(optionMatch));
+      }
+      if (selectedValue !== optionMatch.value) {
+        updateHiddenSelect(optionMatch.value);
         if (visibleInputRef.current) {
-          if (selectRef.current.classList.contains('is-touched')) {
-            visibleInputRef.current.classList.add('is-touched');
-          }
-          visibleInputRef.current.setCustomValidity(selectRef.current.validationMessage);
+          visibleInputRef.current.setCustomValidity("");
         }
       }
-      setShowSuggestions(false);
-      // Ao sair, verifica se o input visível corresponde a um label válido
-      const isValidLabel = options.some(s => (s.label || (typeof s.children === 'string' ? s.children : "")) === inputValue);
-      if (!isValidLabel) {
-        setInputValue("");
-        updateHiddenSelect("");
-      }
+    } else {
+      setInputValue("");
+      updateHiddenSelect("");
     }
   };
 
-  // Lida com o clique fora para fechar sugestões
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-        // Ao clicar fora, verifica se o input visível corresponde a um label válido
-        const isValidLabel = options.some(s => (s.label || (typeof s.children === 'string' ? s.children : "")) === inputValue);
-        if (!isValidLabel && selectedValue !== "") {
-          setInputValue("");
-          updateHiddenSelect("");
+  // --- KEYDOWN ---
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      setShowSuggestions(true);
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) =>
+        prev < useFilteredSuggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
+    } else if (e.key === "Enter") {
+      if (showSuggestions && useFilteredSuggestions.length > 0) {
+        e.preventDefault();
+        if (activeIndex >= 0) {
+          handleSelectOption(useFilteredSuggestions[activeIndex]);
+        } else if (useFilteredSuggestions.length === 1) {
+          handleSelectOption(useFilteredSuggestions[0]);
         }
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [containerRef, inputValue, options, selectedValue]);
-
-  function handleFocus(inputValue: string, suggestions: IOption[], setFilteredSuggestions: React.Dispatch<React.SetStateAction<IOption[]>>, setShowSuggestions: React.Dispatch<React.SetStateAction<boolean>>): React.FocusEventHandler<HTMLInputElement> | undefined {
-    return () => {
-      if (inputValue || suggestions.length <= 10) {
-        const filtered = suggestions.filter(suggestion => (suggestion.label || (typeof suggestion.children === 'string' ? suggestion.children : ""))
-          .toLowerCase().includes(inputValue.toLowerCase())
-        );
-        setFilteredSuggestions(filtered);
-        setShowSuggestions(true);
-      }
-    };
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    } else if (e.key === "Tab") {
+      setShowSuggestions(false);
+    }
   };
+
+  // Scroll
+  React.useEffect(() => {
+    if (showSuggestions && activeIndex >= 0 && listRef.current) {
+      const activeItem = listRef.current.children[activeIndex] as HTMLElement;
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [activeIndex, showSuggestions]);
 
   return (
     <div className="relative mb-4" ref={containerRef} onBlur={handleBlur}>
-      <label className="block mb-1 text-gray-300" htmlFor={`autocomplete-${name}`}>
-        {label}
+      <label
+        className="block mb-1 text-gray-300 font-medium"
+        htmlFor={`autocomplete-${name}`}
+      >
+        {label} {required && <span className="text-red-400">*</span>}
       </label>
-      {/* Input Visível (para busca pelo LABEL) */}
+
       <input
         ref={visibleInputRef}
         id={`autocomplete-${name}`}
         type="text"
-        value={inputValue} // Mostra o label
+        value={inputValue}
         onChange={handleInputChange}
-        onFocus={handleFocus(inputValue, options, setFilteredSuggestions, setShowSuggestions)}
+        onFocus={() => !readOnly && !disabled && setShowSuggestions(true)}
+        onKeyDown={handleKeyDown}
+        disabled={disabled}
+        readOnly={readOnly}
         role="combobox"
         aria-autocomplete="list"
-        aria-expanded={showSuggestions && filteredSuggestions.length > 0}
-        aria-controls={`${name}-suggestions`}
-        className="form-input"
+        aria-expanded={showSuggestions}
         autoComplete="off"
+        placeholder="Selecione..."
+        className={`
+            form-input w-full p-2.5 bg-gray-800 text-white border border-gray-600 rounded-lg 
+            focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all
+            placeholder-gray-500
+            ${disabled || readOnly ? "opacity-50 cursor-not-allowed bg-gray-900" : ""}
+        `}
       />
 
-      {/* Select âncora escondido (usa VALUE e passa outras props do <option>) */}
       <select
         ref={selectRef}
         id={name}
         name={name}
-        value={selectedValue} // Usa o value
-        onChange={() => { }}
+        value={selectedValue}
+        onChange={() => {}}
+        onInvalid={handleInvalid}
         required={required}
+        disabled={disabled}
         data-validation={validationKey}
-        className='absolute w-[1px] h-[1px] -m-[1px] p-0 overflow-hidden clip-[rect(0,0,0,0)] border-0'
+        className="absolute w-0.5 h-0.5 -m-0.5 p-0 overflow-hidden clip-[rect(0,0,0,0)] border-0 pointer-events-none"
         tabIndex={-1}
         aria-hidden="true"
       >
-        <option value=""></option>
-        {/* Popula com value e label, e passa o resto das props para <option> */}
-        {Array.isArray(options) && options.map(suggestion => {
-          // Separa 'label' e 'children' das outras props de <option>
-          const { label: suggestionLabel, children: suggestionChildren, ...optionProps } = suggestion;
+        <option value="">Selecione...</option>
+        {options.map((suggestion) => {
+          const { label: l, children: c, ...rest } = suggestion;
           return (
-            <option key={suggestion.value} {...optionProps} > {/* Passa as props restantes */}
-              {suggestionLabel || suggestionChildren} {/* Usa label ou children para o texto interno */}
+            <option key={suggestion.value} {...rest}>
+              {l || c}
             </option>
           );
         })}
       </select>
 
-      {/* Lista de Sugestões (mostra LABEL ou children) */}
-      {showSuggestions && filteredSuggestions.length > 0 && (
+      {showSuggestions && useFilteredSuggestions.length > 0 && (
         <ul
-          id={`${name}-suggestions`}
+          ref={listRef}
           role="listbox"
-          className="absolute z-10 w-full bg-gray-700 border border-gray-600 rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">
-          {filteredSuggestions.map((suggestion, index) => {
-            const displayLabel = suggestion.label || (typeof suggestion.children === 'string' ? suggestion.children : "");
+          className="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-2xl ring-1 ring-black ring-opacity-5"
+        >
+          {useFilteredSuggestions.map((suggestion, index) => {
+            const displayLabel = useGetOptionLabel(suggestion);
+            const isActive = index === activeIndex;
+            const isSelected = selectedValue === suggestion.value;
+
             return (
               <li
                 key={suggestion.value}
-                id={`${name}-suggestion-${index}`}
                 role="option"
-                aria-selected={selectedValue === suggestion.value}
-                // Adiciona classe se a opção estiver desabilitada
-                className={`px-4 py-2 text-gray-200 hover:bg-gray-600 ${suggestion.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                // Impede a seleção de opções desabilitadas
+                aria-selected={isSelected}
+                className={`
+                  px-4 py-2.5 text-sm text-gray-200 cursor-pointer transition-colors
+                  ${isActive ? "bg-blue-600 text-white" : "hover:bg-gray-600"}
+                  ${isSelected ? "font-semibold bg-gray-600 text-blue-200" : ""}
+                  ${suggestion.disabled ? "opacity-50 cursor-not-allowed" : ""}
+                `}
                 onMouseDown={(e) => {
-                  if (suggestion.disabled) {
-                    e.preventDefault();
-                    return;
-                  }
                   e.preventDefault();
-                  handleSuggestionClick(suggestion);
+                  handleSelectOption(suggestion);
                 }}
               >
                 {displayLabel}
@@ -238,9 +333,14 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
           })}
         </ul>
       )}
+
+      {showSuggestions && useFilteredSuggestions.length === 0 && inputValue && (
+        <div className="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded-lg mt-1 p-3 text-gray-400 text-sm shadow-lg text-center">
+          Nenhuma opção encontrada.
+        </div>
+      )}
     </div>
   );
 };
 
 export default Autocomplete;
-
