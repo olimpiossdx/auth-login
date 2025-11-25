@@ -1,18 +1,11 @@
 import React from 'react'
-import type { IDadosAdicionais } from './types';
+import type { IDadosAdicionais, ISectionProps } from './types';
 import ActionButtons from './action-button';
 
-interface IDadosAdicionaisProps {
-  editingId: string | null;
-  handleCancel: (_: string, prefix: string) => void;
-  handleEdit: (id: string, prefix: string) => void
-};
-
-const DadosAdicionais: React.FC<IDadosAdicionaisProps> = ({
+const DadosAdicionais: React.FC<ISectionProps> = ({
   editingId, handleCancel, handleEdit
 }) => {
   const isEditingAny = editingId !== null;
-
 
   const [initialDadosAdicionais] = React.useState<IDadosAdicionais>({
     rg: 'mg 888888',
@@ -186,11 +179,8 @@ const DadosAdicionais: React.FC<IDadosAdicionaisProps> = ({
             </label>
           </div>
         </div>
-        {/* ... (outros campos) ... */}
       </div>
-    </fieldset>
-
-  )
-}
+    </fieldset>);
+};
 
 export default DadosAdicionais

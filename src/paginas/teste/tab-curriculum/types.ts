@@ -61,3 +61,10 @@ export interface IActionButton {
   isOtherEditing: boolean;
   isEditingThis: boolean;
 };
+
+
+export interface ISectionProps {
+  editingId: string | null;
+  handleCancel: (_: string, prefix: string) => void;
+  handleEdit: (id: string, prefix: string) => void
+};
