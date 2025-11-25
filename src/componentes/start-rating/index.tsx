@@ -30,18 +30,18 @@ const StarRating: React.FC<StarRatingProps> = ({
 
     if (inputRef.current) {
       inputRef.current.value = String(newValue);
-      
+
       // 1. Limpeza Fundamental:
       // Ao clicar, dizemos ao navegador "Este campo agora está válido (ou limpo)".
       // Isso remove o erro anterior e permite o envio do formulário.
-      inputRef.current.setCustomValidity(""); 
-      
+      inputRef.current.setCustomValidity("");
+
       inputRef.current.dispatchEvent(new Event("change", { bubbles: true }));
     }
   };
 
   const handleBlur = () => {
-    if (effectiveDisabled){ 
+    if (effectiveDisabled) {
       return;
     };
 
@@ -53,7 +53,7 @@ const StarRating: React.FC<StarRatingProps> = ({
   };
 
   const displayValue = Number(currentValue) || 0;
-  
+
   return (
     <div className={`relative mb-4 ${effectiveDisabled ? "opacity-50" : ""}`}>
       <label className="block mb-1 text-gray-300" htmlFor={name}>
@@ -79,21 +79,28 @@ const StarRating: React.FC<StarRatingProps> = ({
           </svg>
         ))}
       </div>
-      
+
+      {/* AJUSTE DE CSS PARA O TOOLTIP:
+          1. pointer-events-auto: O navegador precisa sentir que o elemento é interativo.
+          2. bottom-0 h-0: Posicionado na base para o balão apontar para as estrelas.
+          3. w-full: Ocupa toda a largura.
+          4. z-0 ou z-[-1]: Garante que não bloqueie o clique nas estrelas (que devem ter z-index maior).
+      */}
       <input
         ref={inputRef}
         id={name}
         name={name}
         type="number"
-        onInvalid={handleInvalid} 
+        onInvalid={handleInvalid}
         value={currentValue}
-        onChange={() => {}}
+        onChange={() => { }}
         required={required}
         min={required ? 1 : 0}
         max={5}
         tabIndex={-1}
         disabled={disabled}
-        className="appearance-none absolute bottom-0 left-0 w-full h-0 opacity-0 m-0 p-0 border-0 pointer-events-none "
+        style={{ appearance: "none" }}
+        className="absolute bottom-0 left-3 w-3 h-3 opacity-0 m-0 p-0 border-0 pointer-events-auto z-0"
       />
     </div>
   );

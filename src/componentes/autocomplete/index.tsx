@@ -31,7 +31,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   readOnly,
 }) => {
   // --- HELPERS ---
-  const useGetOptionLabel = React.useCallback((option: IOption) =>option.label || (typeof option.children === "string" ? option.children : ""), []);
+  const useGetOptionLabel = React.useCallback((option: IOption) => option.label || (typeof option.children === "string" ? option.children : ""), []);
 
   const useFindInitialLabel = React.useCallback((): string => {
     if (!initialValue) return "";
@@ -149,10 +149,14 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   };
 
   // --- INTERCEPTADOR DE ERRO ---
-  const handleInvalid = (event: React.FormEvent<HTMLSelectElement>) => {
-    event.preventDefault();
+  const handleInvalid = (e: React.FormEvent<HTMLSelectElement>) => {
+    e.preventDefault(); // 1. Impede o balão no select oculto (que o navegador bloquearia anyway)
+
     if (visibleInputRef.current) {
-      visibleInputRef.current.setCustomValidity(event.currentTarget.validationMessage);
+      // 2. Copia a mensagem de erro nativa do select para o input visível
+      visibleInputRef.current.setCustomValidity(e.currentTarget.validationMessage);
+
+      // 3. Força o navegador a mostrar o balão no INPUT VISÍVEL
       visibleInputRef.current.reportValidity();
     }
   };
@@ -275,13 +279,13 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
         `}
       />
 
-    <select
+      <select
         ref={selectRef}
         id={name}
         name={name}
         // MUDANÇA 1: Usamos defaultValue, não value. O React larga o controle após o mount.
-        defaultValue={initialValue} 
-        onChange={() => {}}
+        defaultValue={initialValue}
+        onChange={() => { }}
         onInvalid={handleInvalid}
         required={required}
         disabled={disabled}
