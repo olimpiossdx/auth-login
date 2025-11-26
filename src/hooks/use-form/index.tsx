@@ -8,6 +8,11 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   const fieldListeners = React.useRef<FieldListenerMap>(new Map());
   const validators = React.useRef<ValidatorMap<FV>>({});
 
+  // Conta quantos campos existem com o mesmo nome no formulário
+  const countFieldsByName = (form: HTMLElement, name: string): number => {
+    return form.querySelectorAll(`[name="${name}"]`).length;
+  };
+
   // ============ GERENCIAMENTO DE VALIDAÇÃO ============
 
   const setValidators = React.useCallback((newValidators: ValidatorMap<FV>) => {
@@ -23,41 +28,62 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
     const form = formRef.current;
     if (!form) {
       return namePrefix ? undefined : ({} as FV);
-    };
+    }
 
-    // 1. Busca todos os campos que coincidem ou começam com o prefixo
-    // Nota: Como getFormFields agora retorna Array, podemos usar métodos de array
     const fields = getFormFields(form, namePrefix);
 
-    // Se um prefixo foi passado, verifica-se primeiro se existe um campo com ESSE NOME EXATO.
-    // Se existir, queremos o valor dele (ex: "meu-valor"), e não um objeto {}.
+    // 1. Match Exato (Prioridade)
     if (namePrefix) {
       const exactMatch = fields.find(f => f.name === namePrefix);
       if (exactMatch) {
+        // Se for checkbox único, aplica lógica de valor
+        if (exactMatch instanceof HTMLInputElement && exactMatch.type === 'checkbox') {
+          if (countFieldsByName(form, exactMatch.name) === 1) {
+            const hasValue = exactMatch.hasAttribute('value') && exactMatch.value !== 'on';
+            return exactMatch.checked ? (hasValue ? exactMatch.value : true) : false;
+          }
+        }
         return parseFieldValue(exactMatch);
-      };
-    };
+      }
+    }
 
-    // Caso contrário, construímos o objeto (comportamento padrão para grupos/formulário inteiro)
     const formData = {};
-
-    if (fields.length === 0 && namePrefix) {
-      // Tenta fallback para busca exata caso getFormFields tenha falhado no seletor de prefixo
-      // (Raro com a lógica atual, mas bom por segurança)
-      const singleField = form.querySelector<FormField>(`[name="${namePrefix}"]`);
-      if (singleField) {
-        return parseFieldValue(singleField);
-      };
-    };
+    const processedNames = new Set<string>(); // Evita processar grupos múltiplas vezes
 
     fields.forEach(field => {
       const relativePath = getRelativePath(field.name, namePrefix);
-      // Se relativePath for null, é porque é o próprio campo raiz (já tratado acima)
-      // ou não pertence ao grupo.
-      if (!relativePath) {
-        return;
-      };
+      if (!relativePath || processedNames.has(field.name)) return;
 
+      // --- LÓGICA INTELIGENTE DE CHECKBOX ---
+      if (field instanceof HTMLInputElement && field.type === 'checkbox') {
+        const count = countFieldsByName(form, field.name);
+
+        if (count > 1) {
+          // === MODO GRUPO (ARRAY) ===
+          // Pega TODOS os marcados deste grupo de uma vez
+          const allChecked = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${field.name}"]:checked`);
+          const values = Array.from(allChecked).map(cb => cb.value);
+
+          setNestedValue(formData, relativePath, values);
+
+          // Marca como processado para pular os irmãos no loop
+          processedNames.add(field.name);
+
+        } else {
+          // === MODO SINGLE (BOOLEAN/VALUE) ===
+          if (field.checked) {
+            const hasExplicitValue = field.hasAttribute('value') && field.value !== 'on';
+            // Se tem value="X", retorna "X". Se não, retorna true.
+            setNestedValue(formData, relativePath, hasExplicitValue ? field.value : true);
+          } else {
+            // Desmarcado = false (padrão para flags)
+            setNestedValue(formData, relativePath, false);
+          }
+        }
+        return; // Sai, pois já tratamos este campo
+      }
+
+      // Outros campos
       const value = parseFieldValue(field);
       setNestedValue(formData, relativePath, value);
     });

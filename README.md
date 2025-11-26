@@ -1,124 +1,153 @@
-# 🚀 React Hybrid Forms (v4.12)
+````markdown
+# 🚀 React Hybrid Form v0.4.13
 
-Uma arquitetura de formulários para React focada em **performance**, **acessibilidade** e uso nativo da **API de Validação do DOM**.
+Uma arquitetura de formulários para React focada em **alta performance**, **acessibilidade (a11y)** e uso robusto da **API de Validação Nativa do DOM**.
 
-## 🎯 Filosofia
+> **Filosofia:** O estado do formulário vive no DOM, não no React. O React entra apenas para orquestrar a validação complexa e a submissão. Zero re-renders ao digitar.
 
-Diferente de bibliotecas que controlam cada keystroke no estado do React (causando re-renderizações desnecessárias), esta solução adota uma abordagem **Híbrida/Não-Controlada (Uncontrolled)**:
+## ✨ Destaques
 
-1.  **DOM como Fonte da Verdade:** Os valores ficam nos inputs HTML, não no State do React.
-2.  **Validação Nativa Primeiro:** Utilizamos `checkValidity()` e `reportValidity()` do browser para uma experiência de UI consistente e performática.
-3.  **React para Lógica de Negócios:** O React entra em cena apenas para orquestrar submissões, validações complexas (custom rules) e componentes ricos.
-4.  **Observer Pattern:** Um `MutationObserver` otimizado detecta campos adicionados dinamicamente sem varrer o DOM inteiro.
+* **🏎️ Performance Extrema:** Componentes não controlados (Uncontrolled) por padrão. Digitar em um input não causa re-renderização do formulário.
 
------
+* **🛡️ Validação Híbrida:** Combina `required`, `pattern` e `type` nativos do HTML com funções de validação customizadas (JS) que se integram à UI nativa do navegador (`setCustomValidity`).
 
-## 📂 Estrutura do Projeto
+* **🧩 Componentes Customizados Acessíveis:** Padrões claros para criar componentes ricos (`Autocomplete`, `StarRating`, `Switch`) que funcionam com a validação nativa (`reportValidity`).
+
+* **👀 Observer Pattern Otimizado:** Detecta campos adicionados dinamicamente (ex: listas infinitas) sem escanear o formulário inteiro, garantindo escalabilidade.
+
+* **✅ Checkbox Intelligence:** Distinção automática entre Booleanos (Flag) e Arrays (Grupos) baseada na estrutura do DOM.
+
+## 📦 Estrutura do Projeto
 
 ```bash
 src/
 ├── hooks/
-│   └── useForm.ts        # O cérebro. Gerencia validação, submit e leitura do DOM.
+│   └── useForm.ts        # O Core. Gerencia validação, submit, leitura do DOM e Observer.
 ├── components/
-│   ├── Autocomplete.tsx  # Select com busca, acessível e validável.
-│   ├── StarRating.tsx    # Avaliação com estrelas usando SVGs e input âncora.
-│   └── TabButton.tsx     # Botão de navegação (Stateless).
+│   ├── Autocomplete.tsx  # Input com filtro + Select Oculto (Shadow Select Pattern).
+│   ├── StarRating.tsx    # Avaliação com SVG + Input Âncora (Anchor Input Pattern).
+│   └── TabButton.tsx     # Navegação Stateless.
 ├── utils/
 │   ├── props.ts          # Definições de Tipos (TypeScript).
-│   └── utilities.ts      # Helpers para manipulação de objetos profundos e DOM.
-└── App.tsx               # Exemplo de uso com abas e cenários.
-```
+│   └── utilities.ts      # Helpers para manipulação de objetos profundos e parsing de DOM.
+└── scenarios/            # Exemplos de implementação (Login, Híbrido, Checkbox Groups).
+````
 
------
+## 🛠️ Como Usar
 
-## 🛠️ O Hook `useForm`
+### 1\. O Hook `useForm`
 
-O hook central que conecta o formulário HTML à lógica do React.
-
-### Funcionalidades Chave:
-
-  * **`getValue(prefix?)`**: Lê os valores diretamente do DOM. Suporta aninhamento profundo (`user.address.city`) e Arrays (`items[0].name`).
-  * **`handleSubmit(callback)`**: Intercepta o envio, roda validações customizadas, foca no primeiro erro e, se tudo ok, chama o callback com um JSON estruturado.
-  * **`setValidators({ ... })`**: Permite injetar regras de negócio complexas que o HTML `required` ou `pattern` não cobrem.
-  * **`resetSection(prefix, values)`**: Reseta partes específicas do formulário (útil para botões "Cancelar" em edições parciais).
-  * **Performance:** Utiliza um `MutationObserver` otimizado que escaneia apenas nós adicionados (`addedNodes`), evitando gargalos em formulários grandes.
-
-### Exemplo de Uso:
+O hook conecta o formulário HTML à lógica React sem prender os valores no State.
 
 ```tsx
-const { handleSubmit, getValue, setValidators } = useForm("meu-form-id");
+import useForm from './hooks/useForm';
 
-const onSubmit = (data) => console.log(data);
+const MyForm = () => {
+  const { handleSubmit, getValue, setValidators } = useForm("my-form-id");
 
-return (
-  <form id="meu-form-id" onSubmit={handleSubmit(onSubmit)}>
-    <input name="user.name" required />
-    <button type="submit">Enviar</button>
-  </form>
-);
+  const onSubmit = (data) => {
+    console.log("JSON Submetido:", data);
+  };
+
+  return (
+    <form id="my-form-id" onSubmit={handleSubmit(onSubmit)}>
+      <input name="user.name" required />
+      <input type="number" name="user.age" />
+      <button type="submit">Enviar</button>
+    </form>
+  );
+};
 ```
 
------
+### 2\. Validação Customizada
 
-## 🧩 Componentes Customizados
+Injete regras de negócio que o HTML não cobre. O erro aparecerá no balão nativo do navegador.
 
-Estes componentes foram desenhados para se comportarem como inputs nativos, integrando-se perfeitamente ao fluxo de validação do browser.
+```tsx
+const validarIdade = (value, field) => {
+  if (value < 18) return { message: "Você precisa ser maior de idade.", type: "error" };
+};
 
-### 1\. Autocomplete (`Autocomplete.tsx`)
+// No componente:
+useEffect(() => {
+  setValidators({ validarIdade });
+}, [setValidators]);
 
-Um componente de seleção com filtro, mas que mantém um `<select>` oculto para garantir a integridade dos dados.
+// No HTML:
+<input name="idade" type="number" data-validation="validarIdade" />
+```
 
-  * **Pattern "Shadow Select":** Mantém um `<select>` oculto (`clip: rect(0,0,0,0)`) sincronizado. Isso garante que se o JS falhar, o dado ainda existe.
-  * **Acessibilidade:** Suporte completo a teclado (Setas, Enter, Tab, Blur).
-  * **Correção de Validação:** Implementa lógica para forçar a revalidação visual (borda verde/vermelha) imediatamente após seleção via teclado, contornando "race conditions" do browser.
-  * **Uncontrolled Mode:** Usa `defaultValue` no select interno para evitar resets indesejados ao re-renderizar o componente pai.
+## 🧠 Lógica Inteligente de Dados (`getValue`)
 
-### 2\. StarRating (`StarRating.tsx`)
+O sistema lê o DOM e converte para JSON estruturado automaticamente.
 
-Componente de avaliação visual que usa a API de validação nativa.
+| Cenário HTML | Comportamento `getValue` | Resultado JSON |
+| :--- | :--- | :--- |
+| **Campos Simples** | `name="user.email"` | `{ "user": { "email": "..." } }` |
+| **Arrays** | `name="tags[0]"` | `{ "tags": ["..."] }` |
+| **Checkbox (Único)** | `name="terms"` | `{ "terms": true }` (ou valor se definido) |
+| **Checkbox (Grupo)** | Múltiplos inputs com `name="roles"` | `{ "roles": ["admin", "editor"] }` |
 
-  * **Pattern "Anchor Input":** Usa um input invisível (`opacity: 0`, `w-full`, `bottom-0`) posicionado sobre as estrelas.
-      * *Por que?* Para que o balão de erro nativo ("Preencha este campo") aponte corretamente para as estrelas, e não para um pixel aleatório.
-  * **Sem Recursão:** Lógica de validação ajustada para evitar o erro `InternalError: too much recursion` ao usar `reportValidity` dentro de um evento `onInvalid`.
-  * **Acessibilidade:** Container com `tabindex="0"` e `role="slider"`, permitindo navegação via teclado.
+> **Nota:** A detecção de Grupo vs Único é automática baseada na contagem de elementos com o mesmo `name` no formulário.
 
------
+## 🎨 Padrões para Componentes Customizados
 
-## ⚙️ Utilitários (`utilities.ts`)
+Para criar componentes visuais (como Ratings ou Selects customizados) que suportam validação nativa, siga estes padrões arquiteturais incluídos no projeto:
 
-Funções puras e robustas para manipulação de dados e DOM.
+### Pattern 1: Shadow Select (`Autocomplete`)
 
-  * **`getFormFields(root)`**: Retorna um Array (não NodeList) de inputs válidos, filtrando botões e elementos irrelevantes.
-  * **`setNestedValue` / `getNestedValue`**: Algoritmo capaz de transformar strings de caminho (`"clientes[0].endereco.rua"`) em objetos JavaScript reais e vice-versa.
-  * **`parseFieldValue`**: Normaliza valores, convertendo strings numéricas para `Number`, tratando `Checkbox` como booleanos e garantindo que `Radio` buttons só retornem valor se marcados.
+Usado quando o valor é selecionado de uma lista.
 
------
+1.  Mantenha um `<select>` oculto (`clip: rect(0,0,0,0)`) sincronizado com o estado visual.
 
-## 🚨 Soluções de Problemas Recentes
+2.  Use `defaultValue` no select para manter o componente **Uncontrolled**.
 
-Documentação de bugs críticos que foram resolvidos nesta versão:
+3.  No evento `onInvalid` do select oculto, transfira a mensagem de erro para o input de texto visível (`reportValidity`).
 
-1.  **Bug do Reset no Autocomplete:**
+### Pattern 2: Anchor Input (`StarRating`)
 
-      * *Problema:* Ao clicar em "Salvar", o Autocomplete limpava o valor.
-      * *Causa:* A prop `options` era recriada a cada render do pai, e o select oculto era Controlado.
-      * *Solução:* Movemos `options` para uma constante externa e tornamos o select interno **Não-Controlado** (`defaultValue`).
+Usado quando não há input de texto nativo (ex: SVGs, Canvas).
 
-2.  **Erro de Recursão no StarRating:**
+1.  Renderize um `<input>` invisível (`opacity: 0`) posicionado sobre ou abaixo do componente visual.
 
-      * *Problema:* O navegador travava com "Too much recursion".
-      * *Causa:* Chamar `reportValidity()` dentro de um handler `onInvalid`.
-      * *Solução:* Apenas definir a mensagem (`setCustomValidity`) e deixar o navegador exibir o balão naturalmente.
+2.  Garanta que ele seja "clicável" (`pointer-events-auto`) para o navegador aceitar exibir o balão, mas com `z-index` inferior à UI.
 
-3.  **Foco de Erro em Componentes Custom:**
+3.  A validação nativa apontará para este input âncora, criando a ilusão de que as estrelas/ícones foram validados.
 
-      * *Problema:* O foco ia para o input oculto, que não scrollava a tela.
-      * *Solução:* O `useForm` agora procura por elementos "irmãos" visíveis ou com `tabindex="0"` para focar quando um input oculto está inválido.
+## 🌳 Checkbox Groups & Hierarquia
 
------
+Para criar grupos hierárquicos (Pai seleciona Filhos) com validação "Pelo menos um":
 
-## 🚀 Como Rodar
+1.  **HTML:** Use checkboxes normais com o mesmo `name`.
 
-1.  Copie a pasta `src` para seu projeto React.
-2.  Instale as dependências (apenas React e TypeScript, sem libs de form externas).
-3.  Importe o `useForm` e comece a criar formulários performáticos\!
+2.  **Validação:** Adicione `data-validation` **apenas no primeiro checkbox** do grupo.
+
+3.  **Visual:** O "Pai" (Selecionar Todos) deve ser apenas controle de UI (sem `name` de dados).
+
+<!-- end list -->
+
+```tsx
+// Exemplo visual no arquivo scenarios/CheckboxGroupForm.tsx
+<label><input type="checkbox" ref={paiRef} onChange={toggleAll} /> Todos</label>
+<div class="children">
+   <input name="permissoes" value="ler" data-validation="validarPeloMenosUm" />
+   <input name="permissoes" value="escrever" />
+</div>
+```
+
+## 🧪 Utilitários (`utilities.ts`)
+
+Funções puras exportadas para uso geral:
+
+  * `getFormFields(root)`: Busca inputs válidos dentro de qualquer container.
+
+  * `setNestedValue(obj, path, value)`: Cria objetos profundos a partir de strings de caminho.
+
+  * `parseFieldValue(field)`: Normaliza valores (converte strings numéricas, trata checkboxes e radios).
+
+### Licença
+
+MIT
+
+```
+```
