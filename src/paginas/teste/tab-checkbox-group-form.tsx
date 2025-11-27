@@ -1,183 +1,248 @@
-import React from 'react';
-import useForm from '../../hooks/use-form';
-import type { FormField, ValidationResult } from '../../hooks/use-form/props';
-import showModal from '../../componentes/modal/hook';
+import React from "react";
+import showModal from "../../componentes/modal/hook";
+import useForm from "../../hooks/use-form";
+import type { FormField } from "../../hooks/use-form/props";
 
-
+// Estrutura de dados do formulário
 interface IFormValues {
-  notificacoes: boolean; // Checkbox Simples
-  permissoes: string[];  // Checkbox Group
+  aceite: boolean;            // Unico (Boolean)
+  plano: string | boolean;    // Unico (Valor)
+  interesses: string[];       // Grupo Estático
+  tarefas: string[];          // Grupo Dinâmico
+  motivo_cancelamento?: string; // Campo Condicional
 }
 
-const CheckboxGroupForm = ({ }) => {
-  const { handleSubmit, setValidators, formId } = useForm<IFormValues>("checkbox-group-form");
+// MOCK: Dados que viriam de uma API para edição
+const DADOS_API: IFormValues = {
+  aceite: true,
+  plano: 'premium',
+  // IMPORTANTE: Traz 'cancelamento' para testar se a UI reage
+  interesses: ['backend', 'cancelamento'],
+  tarefas: ['setup'],
+  motivo_cancelamento: 'Mudança de Stack Tecnológica'
+};
 
-  // --- LÓGICA DE UI (VISUAL APENAS) ---
-  // Refs para manipular o estado 'indeterminate' que não existe no HTML nativo
-  const parentRef = React.useRef<HTMLInputElement>(null);
-  const childrenContainerRef = React.useRef<HTMLDivElement>(null);
 
-  // Função que recalcula o estado do Pai baseado nos Filhos
-  const updateParentState = () => {
-    if (!parentRef.current || !childrenContainerRef.current) return;
+const CheckboxGroupForm = () => {
+  const { handleSubmit, setValidators, formId, resetSection } = useForm<IFormValues>("checkbox-group-form");
 
-    const children = Array.from(childrenContainerRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
-    const checkedCount = children.filter(c => c.checked).length;
+  // UI States
+  const [mode, setMode] = React.useState<'novo' | 'editando'>('novo');
+  const [tarefasExtras, setTarefasExtras] = React.useState<number[]>([]);
 
-    if (checkedCount === 0) {
-      parentRef.current.checked = false;
-      parentRef.current.indeterminate = false;
-    } else if (checkedCount === children.length) {
-      parentRef.current.checked = true;
-      parentRef.current.indeterminate = false;
-    } else {
-      parentRef.current.checked = false;
-      parentRef.current.indeterminate = true; // O Traço Mágico (-)
+  // Ilha de Reatividade: Controla visibilidade do campo "Motivo"
+  const [isCancelando, setIsCancelando] = React.useState(false);
+
+  // --- VALIDAÇÕES (CORRIGIDAS) ---
+  // Usamos 'any' no valor para satisfazer a interface genérica ValidateFn<T>
+  // Na prática, sabemos que 'values' será string[] ou undefined vindo do checkbox group.
+
+  const validarInteresses = React.useCallback((values: any) => {
+    if (!values || (Array.isArray(values) && values.length === 0)) {
+      return { message: "Selecione ao menos uma área.", type: "error" as const };
     }
-  };
-
-  // Função para o Pai marcar/desmarcar todos
-  const toggleAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!childrenContainerRef.current) {
-      return;
-    };
-
-    const isChecked = event.target.checked;
-
-    const children = childrenContainerRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
-    children.forEach(child => {
-      child.checked = isChecked;
-      // Dispara evento para o useForm saber que mudou
-      child.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-  };
-
-  // --- LÓGICA DE NEGÓCIO (VALIDAÇÃO) ---
-
-  // Regra: Array de permissões não pode ser vazio
-  const validarPermissoes = React.useCallback((values: string[], _: FormField | null): ValidationResult => {
-    // O useForm agora nos garante que 'values' será um array de strings
-    if (!values || values.length === 0) {
-      return { message: "Selecione pelo menos uma permissão abaixo.", type: "error" };
+    if (Array.isArray(values) && values.length > 3) {
+      return { message: "Escolha no máximo 3 focos.", type: "warning" as const };
     }
-    return undefined;
+  }, []);
+
+  // Validação Cruzada: Depende do valor de 'interesses'
+  const validarMotivo = React.useCallback((valor: any, _: FormField | null, formValues: IFormValues) => {
+    const temCancelamento = formValues.interesses?.includes('cancelamento');
+
+    // Se marcou cancelar E não preencheu motivo -> Erro
+    if (temCancelamento && !valor) {
+      return { message: "Por favor, nos diga o motivo da saída.", type: "error" as const };
+    }
   }, []);
 
   React.useEffect(() => {
-    setValidators({ validarPermissoes });
-  }, [setValidators, validarPermissoes]);
+    setValidators({ validarInteresses, validarMotivo });
+  }, [setValidators, validarInteresses, validarMotivo]);
+
+  // --- HANDLERS DE CICLO DE VIDA (CORRIGIDOS) ---
+
+  const handleLoadData = () => {
+    console.log("1. Carregando dados do servidor...");
+    setMode('editando');
+
+    // Passo A: Injeta os dados no DOM (Inputs)
+    // Isso vai marcar o checkbox visualmente
+    resetSection("", DADOS_API);
+
+    // Passo B: Sincroniza a UI Reativa (React State)
+    // Verificamos explicitamente: "Nos dados, existe cancelamento?"
+    // Isso garante que o input de texto apareça, independente de eventos.
+    const deveMostrarCancelamento = DADOS_API.interesses.includes('cancelamento');
+    setIsCancelando(deveMostrarCancelamento);
+  };
+
+  const handleCancel = () => {
+    console.log("Cancelando alterações...");
+
+    if (mode === 'novo') {
+      // Limpa tudo
+      resetSection("", null);
+      setIsCancelando(false);
+    } else {
+      // Volta para o estado da API
+      resetSection("", DADOS_API);
+
+      // Restaura UI para o estado original
+      const estavaCancelando = DADOS_API.interesses.includes('cancelamento');
+      setIsCancelando(estavaCancelando);
+    }
+  };
+
+  // Handler Híbrido: Atualiza React UI quando o usuário clica manualmente
+  const handleCancelamentoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsCancelando(e.target.checked);
+  };
 
   const onSubmit = (data: IFormValues) => {
     showModal({
-      title: "Dados do Grupo",
+      title: mode === 'novo' ? "Criar Registro" : "Salvar Edição",
       content: () => (
-        <div className="space-y-2">
-          <p><strong>Notificações (Single):</strong> {String(data.notificacoes)}</p>
-          <p><strong>Permissões (Group):</strong> {JSON.stringify(data.permissoes)}</p>
-        </div>
+        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto border border-gray-700">
+          {JSON.stringify(data, null, 2)}
+        </pre>
       ),
     });
   };
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
-      <h2 className="text-xl font-bold mb-6 text-cyan-400">Teste de Checkbox & Grupos</h2>
+    <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 max-w-5xl mx-auto">
 
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
-
-        {/* CASO 1: Checkbox Único (Flag) */}
-        <div className="mb-8 p-4 bg-gray-900 rounded-md">
-          <h3 className="text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">Caso 1: Flag Booleana</h3>
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              name="notificacoes"
-              className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900"
-            />
-            <span className="text-gray-200 group-hover:text-white transition-colors">
-              Ativar notificações por e-mail
-            </span>
-          </label>
+      <div className="flex justify-between items-center mb-6 pb-6 border-b border-gray-700">
+        <div>
+          <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
+            {mode === 'novo' ? '✨ Novo Cadastro' : '✏️ Editando Registro'}
+          </h2>
+          <p className="text-xs text-gray-400">Teste de Load/Reset com Sincronia Explícita.</p>
         </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleLoadData}
+            disabled={mode === 'editando'}
+            className="px-3 py-1.5 text-sm bg-blue-900 text-blue-200 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-800"
+          >
+            📥 Simular Edição (API)
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-3 py-1.5 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors border border-gray-600"
+          >
+            ↺ {mode === 'novo' ? 'Limpar Tudo' : 'Desfazer Alterações'}
+          </button>
+        </div>
+      </div>
 
-        {/* CASO 2: Checkbox Group Hierárquico */}
-        <div className="mb-6 p-4 bg-gray-900 rounded-md">
-          <h3 className="text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-            Caso 2: Grupo Obrigatório
-            <span className="text-xs bg-gray-700 px-2 py-0.5 rounded text-cyan-300">Array</span>
-          </h3>
+      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate className="grid md:grid-cols-2 gap-8 animate-in fade-in zoom-in duration-300">
 
-          {/* Título com Indicador de Obrigatório */}
-          <div className="mb-3">
-            <span className="font-medium text-white">
-              Permissões de Acesso
-              <span className="text-red-400 ml-1" title="Campo obrigatório">*</span>
-            </span>
-            <p className="text-xs text-gray-500">Selecione ao menos uma opção.</p>
-          </div>
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1">1. Unitários</h3>
 
-          {/* Hierarquia Visual */}
-          <div className="flex flex-col gap-2">
-
-            {/* O PAI (Controller) */}
-            <label className="flex items-center gap-3 font-bold text-cyan-400 cursor-pointer hover:opacity-80">
-              <input
-                type="checkbox"
-                ref={parentRef}
-                onChange={toggleAll}
-                className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-gray-900"
-              />
-              Selecionar Todas
+          <div className="bg-gray-900/50 p-4 rounded border border-gray-700 space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" name="aceite" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+              <span className="text-gray-300">Li e aceito os termos</span>
             </label>
 
-            {/* OS FILHOS (Dados) */}
-            <div
-              ref={childrenContainerRef}
-              className="ml-1 pl-7 border-l-2 border-gray-700 flex flex-col gap-3 py-1"
-            >
-              <label className="flex items-center gap-3 cursor-pointer hover:text-white text-gray-300 transition-colors">
-                <input
-                  type="checkbox"
-                  name="permissoes"
-                  value="ler"
-                  onChange={updateParentState} // Atualiza o estado visual do Pai
-                  data-validation="validarPermissoes" // <-- Validação ancorada AQUI
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-gray-900"
-                />
-                Ler Dados
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <input type="checkbox" name="plano" value="premium" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-offset-gray-900" />
+              <span className="text-gray-300">Upgrade para Premium</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1">2. Grupo & Reatividade</h3>
+
+          <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <div className="mb-2">
+              <span className="font-bold text-white block">Áreas de Interesse <span className="text-red-400">*</span></span>
+            </div>
+
+            {/* MESTRE: Auto-gerenciado via atributo */}
+            <label className="flex items-center gap-2 text-cyan-400 font-bold mb-2 cursor-pointer w-fit select-none hover:opacity-80">
+              <input type="checkbox" data-checkbox-master="interesses" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+              Selecionar Todos
+            </label>
+
+            <div className="pl-4 border-l-2 border-gray-700 ml-1.5 flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
+                <input type="checkbox" name="interesses" value="frontend" data-validation="validarInteresses"
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+                Frontend
+              </label>
+              <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
+                <input type="checkbox" name="interesses" value="backend"
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+                Backend
               </label>
 
-              <label className="flex items-center gap-3 cursor-pointer hover:text-white text-gray-300 transition-colors">
+              {/* GATILHO REATIVO */}
+              <label className={`flex items-center gap-2 font-medium p-1 rounded -ml-1 transition-colors cursor-pointer ${isCancelando ? 'bg-yellow-900/20 text-yellow-200' : 'text-gray-400 hover:text-yellow-200'}`}>
                 <input
                   type="checkbox"
-                  name="permissoes"
-                  value="escrever"
-                  onChange={updateParentState}
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-gray-900"
+                  name="interesses"
+                  value="cancelamento"
+                  onChange={handleCancelamentoChange}
+                  className="w-4 h-4 rounded border-yellow-600 bg-gray-700 text-yellow-500 focus:ring-offset-gray-900"
                 />
-                Gravar/Editar Dados
+                Quero Cancelar Conta
               </label>
 
-              <label className="flex items-center gap-3 cursor-pointer hover:text-white text-gray-300 transition-colors">
-                <input
-                  type="checkbox"
-                  name="permissoes"
-                  value="excluir"
-                  onChange={updateParentState}
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-500 focus:ring-offset-gray-900"
-                />
-                Excluir Registros
-              </label>
+              {/* ILHA DE REATIVIDADE: Renderizado pelo React State */}
+              {isCancelando && (
+                <div className="mt-2 animate-in slide-in-from-top-2 fade-in duration-300 pl-6 border-l-2 border-yellow-900/50 ml-1">
+                  <label className="text-xs text-yellow-500 block mb-1 font-bold">Motivo Obrigatório:</label>
+                  <input
+                    type="text"
+                    name="motivo_cancelamento"
+                    data-validation="validarMotivo"
+                    placeholder="Por que você está saindo?"
+                    className="w-full bg-gray-800 border border-yellow-700/50 rounded px-2 py-1 text-sm text-white focus:border-yellow-500 outline-none placeholder-gray-600"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="py-2 px-6 rounded bg-green-600 hover:bg-green-700 text-white font-medium shadow-lg transition-transform active:scale-95"
-          >
-            Validar e Salvar
+        {/* BLOCO 3: Dinâmico (Mantido igual) */}
+        <div className="space-y-4 md:col-span-2">
+          <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1 flex justify-between items-center">
+            3. Lista Dinâmica (Observer)
+            <button type="button" onClick={() => setTarefasExtras(p => [...p, Date.now()])} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-0.5 rounded text-xs lowercase border border-gray-600 transition-colors">
+              + add item
+            </button>
+          </h3>
+          <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
+            <label className="flex items-center gap-2 text-purple-400 font-bold mb-2 cursor-pointer w-fit hover:opacity-80">
+              <input type="checkbox" data-checkbox-master="tarefas" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
+              Marcar Concluídas
+            </label>
+            <div className="pl-4 border-l-2 border-gray-700 ml-1.5 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
+                <input type="checkbox" name="tarefas" value="setup" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
+                Setup Inicial
+              </label>
+              {tarefasExtras.map((id, idx) => (
+                <label key={id} className="flex items-center gap-2 text-gray-300 animate-in zoom-in fade-in hover:text-white cursor-pointer">
+                  <input type="checkbox" name="tarefas" value={`task_${id}`} className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
+                  Extra #{idx + 1}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="md:col-span-2 flex justify-end pt-4 border-t border-gray-800 gap-4">
+          <button type="submit" className="py-2 px-8 rounded bg-green-600 hover:bg-green-700 text-white font-medium shadow-lg active:scale-95 transition-transform hover:shadow-green-900/20">
+            {mode === 'novo' ? 'Salvar Registro' : 'Atualizar Dados'}
           </button>
         </div>
       </form>
