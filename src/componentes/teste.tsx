@@ -362,7 +362,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
         onChange={() => { }}
         required={required}
         data-validation={validationKey}
-        className='absolute w-[1px] h-[1px] -m-[1px] p-0 overflow-hidden clip-[rect(0,0,0,0)] border-0'
+        className='absolute w-1px h-1px -m-1px p-0 overflow-hidden clip-[rect(0,0,0,0)] border-0'
         tabIndex={-1}
         aria-hidden="true"
       >
@@ -558,7 +558,7 @@ const StarRating = ({ name, label, required }: { name: string, label: string, re
         required={required}
         min={required ? 1 : 0}
         style={{ appearance: 'none' }}
-        className='absolute opacity-0 w-[250px] h-[1px] m-0 p-0 border-0 pointer-events-none' // Removido pointer-events-none, mantido w-[250px]
+        className='absolute opacity-0 w-[250px] h-1px m-0 p-0 border-0 pointer-events-none' // Removido pointer-events-none, mantido w-[250px]
         max={5}
         tabIndex={-1}
       />
@@ -713,7 +713,7 @@ const CustomModal: React.FC<{ title: string; message: string; onClose: () => voi
         onClick={(e) => e.stopPropagation()} // Impede o fechamento ao clicar dentro
       >
         <h2 className='text-xl font-bold text-cyan-400 mb-4'>{title}</h2>
-        <p className='text-gray-300 whitespace-pre-wrap break-words'>{message}</p>
+        <p className='text-gray-300 whitespace-pre-wrap wrap-break-words'>{message}</p>
         <button
           onClick={onClose}
           className='w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded transition-colors mt-6'

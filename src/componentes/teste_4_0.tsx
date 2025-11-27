@@ -7,6 +7,7 @@ import NestedListForm from "../paginas/teste/tab-nested-list-form";
 import CurriculumForm from "../paginas/teste/tab-curriculum";
 import CheckboxGroupForm from "../paginas/teste/tab-checkbox-group-form";
 import TabModal from "../paginas/teste/tab-modal";
+import NestedLevelForm from "./nested-level-form";
 
 // Foca no nova tab/formulário-ativo
 const Teste: React.FC = () => {
@@ -21,13 +22,14 @@ const Teste: React.FC = () => {
     curriculum: <CurriculumForm />,
     checkboxGroup: <CheckboxGroupForm />,
     tabModal: <TabModal />,
+    nestedLevelForm: <NestedLevelForm />,
   };
 
   return (<div className="bg-gray-800 text-white min-h-screen p-2 sm:p-4 font-sans">
     <div className="max-w-4xl mx-auto">
       <header className="text-center mb-8">
         <h1 className="text-xl sm:text-4xl font-extrabold text-cyan-400">
-          `useForm` - v0.4.13
+          `useForm` - v0.4.13.1
         </h1>
         <p className="text-gray-400 mt-2">Edição Contextual por Seção</p>
       </header>
@@ -74,6 +76,12 @@ const Teste: React.FC = () => {
           tabId="tabModal"
           label="Modal"
           isActive={activeTab === "tabModal"}
+          onClick={setActiveTab}
+        />
+         <TabButton
+          tabId="nestedLevelForm"
+          label="Form com N níveis"
+          isActive={activeTab === "nestedLevelForm"}
           onClick={setActiveTab}
         />
       </div>
