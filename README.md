@@ -1,4 +1,3 @@
-
 ````markdown
 # 🚀 React Hybrid Form `v0.4.13.2`
 
@@ -16,7 +15,7 @@ Uma arquitetura de formulários para React focada em **alta performance**, **ace
 ## ✨ Destaques
 
 - **🏎️ Performance Extrema:** Componentes não controlados (*Uncontrolled*) por padrão. Digitar em um input não causa re-renderização do formulário.
-- **🛡️ Validação Híbrida:** Combina `required`, `pattern` e `type` nativos do HTML com funções de validação customizadas (JS) integradas à UI nativa (`setCustomValidity`).
+- **🛡️ Validação Híbrida:** Combina `required`, `pattern` e `type` nativos do HTML com funções de validação customizadas (JS) que se integram à UI nativa do navegador (`setCustomValidity`).
 - **✅ Checkbox Intelligence:** Distinção automática entre Booleanos (Flag) e Arrays (Grupos) baseada na estrutura do DOM.
 - **👑 Master/Detail Checkboxes:** Funcionalidade "Selecionar Todos" declarativa via atributo HTML (`data-checkbox-master`), sem necessidade de hooks manuais.
 - **🔄 Sincronia Explícita:** Padrões claros para carregar dados (Load/Edit) garantindo que a UI do React e o DOM estejam sempre em sintonia.
@@ -31,11 +30,11 @@ src/
 ├── hooks/
 │   └── useForm.ts        # O Core. Gerencia validação, submit, leitura do DOM e Observer.
 ├── components/
-│   ├── Autocomplete.tsx  # Input com filtro + Select Oculto.
-│   ├── StarRating.tsx    # Avaliação com SVG + Input Âncora.
-│   └── CheckboxTree.tsx  # (Opcional) Wrapper visual para grupos.
+│   ├── Autocomplete.tsx  # Input com filtro + Select Oculto (Shadow Select Pattern).
+│   ├── StarRating.tsx    # Avaliação com SVG + Input Âncora (Anchor Input Pattern).
+│   └── TabButton.tsx     # Navegação Stateless.
 ├── utils/
-│   ├── props.ts          # Definições de Tipos.
+│   ├── props.ts          # Definições de Tipos (TypeScript).
 │   └── utilities.ts      # Helpers de DOM, Parser de valores e Lógica de Checkbox.
 └── scenarios/
     ├── CheckboxGroupForm.tsx # Exemplo de Grupos, Reatividade e Ciclo de Vida.
@@ -67,6 +66,26 @@ const MyForm = () => {
     </form>
   );
 };
+```
+
+### 2\. Validação Customizada
+
+Injete regras de negócio que o HTML não cobre. O erro aparecerá no balão nativo do navegador.
+
+```tsx
+const validarIdade = (value, field) => {
+  if (value < 18) {
+    return { message: "Você precisa ser maior de idade.", type: "error" };
+  }
+};
+
+// No componente:
+useEffect(() => {
+  setValidators({ validarIdade });
+}, [setValidators]);
+
+// No HTML:
+<input name="idade" type="number" data-validation="validarIdade" />
 ```
 
 -----
@@ -127,20 +146,22 @@ Como o React controla a exibição de campos condicionais (Ilhas de Reatividade)
 ```tsx
 // Exemplo de Handler de Edição
 const handleLoadData = () => {
-    // 1. Atualiza o DOM (Preenche inputs, marca checkboxes)
-    // O resetSection dispara eventos nativos para acordar validadores e handlers híbridos
-    resetSection("", DADOS_API); 
-    
-    // 2. Atualiza a UI Reativa (React State)
+    // 1. Atualiza a UI Reativa (React State)
     // Baseado nos DADOS, decidimos o que mostrar/esconder
     const deveMostrarMotivo = DADOS_API.interesses.includes('cancelamento');
     setShowMotivoInput(deveMostrarMotivo);
+
+    // 2. Atualiza o DOM (Preenche inputs, marca checkboxes)
+    // Usamos setTimeout para garantir que o React já renderizou os inputs condicionais
+    setTimeout(() => {
+        resetSection("", DADOS_API); 
+    }, 0);
 };
 ```
 
 -----
 
-## 🎨 Design Patterns para Componentes
+## 🎨 Padrões para Componentes Customizados
 
 ### Pattern 1: Shadow Select (`Autocomplete`)
 
@@ -164,6 +185,7 @@ Funções puras exportadas para uso geral:
   - `setNestedValue(obj, path, value)`: Cria objetos profundos a partir de strings de caminho.
   - `syncCheckboxGroup(target, form)`: Lógica central que sincroniza Mestres e Filhos.
   - `initializeCheckboxMasters(root)`: Recalcula estado visual dos Mestres ao carregar a página.
+  - `setNativeValue(element, value)`: Define valor em inputs e dispara eventos para acordar o React (Bypass).
 
 ### Licença
 
