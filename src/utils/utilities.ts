@@ -2,41 +2,10 @@ import type { IAnyObject, FormField } from "../hooks/use-form/props";
 
 const splitPath = (path: string) => path.replace(/\]/g, '').split(/[.\[]/);
 
-// ============ REATIVIDADE FORÇADA (REACT BYPASS) ============
 
 /**
- * Força uma atualização de valor que o React consegue detectar e disparar onChange.
- * Útil para resetar formulários em arquiteturas híbridas.
- */
-export const setNativeValue = (element: HTMLElement, value: any) => {
-  // 1. Identifica se é Checkbox/Radio (usa 'checked') ou Texto (usa 'value')
-  const isCheckbox = element instanceof HTMLInputElement && (element.type === 'checkbox' || element.type === 'radio');
-  const propName = isCheckbox ? 'checked' : 'value';
-
-  // 2. Busca o setter original do protótipo do navegador
-  // (Ignorando o setter sobrescrito pelo React)
-  const descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, propName);
-  
-  if (descriptor && descriptor.set) {
-      // 3. Chama o setter original
-      descriptor.set.call(element, value);
-  } else {
-      // Fallback
-      (element as any)[propName] = value;
-  }
-
-  // 4. Dispara o evento que o React escuta
-  // React 16+ ouve 'click' para checkboxes para inversão de estado
-  // Para texto, ouve 'input'
-  const eventName = isCheckbox ? 'click' : 'input';
-  
-  const event = new Event(eventName, { bubbles: true });
-  element.dispatchEvent(event);
-};
-
-/**
- * Define um valor em um objeto aninhado usando string path.
- * Suporta notação de array (ex: 'users[0].name') e cria arrays/objetos automaticamente.
+ * Define valor em objeto aninhado (Mutável)
+ * Ex: obj={}, path="a.b", value=1 -> obj={a:{b:1}}
  */
 export const setNestedValue = (obj: IAnyObject, path: string, value: any): void => {
   if (value === undefined) return;
@@ -61,6 +30,9 @@ export const setNestedValue = (obj: IAnyObject, path: string, value: any): void 
   }
 };
 
+/**
+ * Lê valor de objeto aninhado
+ */
 export const getNestedValue = (obj: IAnyObject, path: string): any => {
   if (!path || !obj) return undefined;
   const keys = splitPath(path);
@@ -70,7 +42,7 @@ export const getNestedValue = (obj: IAnyObject, path: string): any => {
 };
 
 /**
- * Busca campos válidos de formulário dentro de um container.
+ * Busca campos válidos dentro de um container.
  * Filtra botões e inputs de controle que não guardam dados de negócio.
  */
 export const getFormFields = (root: HTMLElement, namePrefix?: string): FormField[] => {
@@ -87,6 +59,10 @@ export const getFormFields = (root: HTMLElement, namePrefix?: string): FormField
   });
 };
 
+/**
+ * Extrai caminho relativo do nome do campo.
+ * Ex: name="user.address.city", prefix="user" -> "address.city"
+ */
 export const getRelativePath = (fieldName: string, namePrefix?: string): string | null => {
   if (!namePrefix) return fieldName;
   if (fieldName === namePrefix) return null;
@@ -100,9 +76,6 @@ export const getRelativePath = (fieldName: string, namePrefix?: string): string 
 
 /**
  * Normaliza o valor do campo DOM para tipos JS primitivos.
- * - Checkbox: boolean
- * - Number: number (ou string vazia)
- * - Radio: valor apenas se checked
  */
 export const parseFieldValue = (field: FormField): any => {
   if (field instanceof HTMLInputElement) {
@@ -113,11 +86,65 @@ export const parseFieldValue = (field: FormField): any => {
   return field.value;
 };
 
-// ============ LÓGICA DE CHECKBOX GROUP (CORE) ============
+// ============ REATIVIDADE FORÇADA (REACT BYPASS) ============
 
 /**
- * Helper interno: Recalcula o estado visual (Checked/Indeterminate) de um Mestre.
- * O estado 'indeterminate' (traço) é puramente visual e não existe no HTML estático.
+ * Altera o valor de um input furando o bloqueio do React (Synthetic Events).
+ * * MOTIVAÇÃO: O React sobrescreve os setters de 'value' e 'checked'. Alterações via JS 
+ * não disparam 'onChange' automaticamente. Esta função acessa o protótipo nativo 
+ * para injetar o valor e disparar o evento manualmente.
+ * * CORREÇÃO BUG: Usamos protótipos explícitos (HTMLInputElement.prototype) em vez de 
+ * dinâmicos (Object.getPrototypeOf) para evitar "TypeError: Illegal invocation".
+ */
+export const setNativeValue = (element: HTMLElement, value: any) => {
+  // 1. Guarda de Proteção: Não força edição em campos bloqueados
+  if ((element as any).disabled || (element as any).readOnly) return;
+
+  // 2. Busca o descritor no protótipo CORRETO para evitar Illegal Invocation
+  let descriptor: PropertyDescriptor | undefined;
+
+  if (element instanceof HTMLInputElement) {
+      descriptor = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+  } else if (element instanceof HTMLSelectElement) {
+      descriptor = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value');
+  } else if (element instanceof HTMLTextAreaElement) {
+      descriptor = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
+  }
+
+  // 3. Aplica o valor usando o setter nativo (se existir) ou direto
+  if (descriptor && descriptor.set) {
+      descriptor.set.call(element, value);
+  } else {
+      (element as any).value = value;
+  }
+
+  // 4. Dispara eventos para acordar o React e Validadores
+  element.dispatchEvent(new Event('input', { bubbles: true }));
+  
+  // Selects geralmente precisam de 'change' para o React perceber a opção
+  if (element instanceof HTMLSelectElement) {
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+};
+
+/**
+ * Especialização para Checkboxes: Usa clique nativo para máxima compatibilidade.
+ */
+export const setNativeChecked = (element: HTMLInputElement, checked: boolean) => {
+  // Se já estiver no estado desejado ou for disabled, ignora
+  if (element.checked === checked) return;
+  if (element.disabled || element.readOnly) return;
+
+  // O clique nativo inverte o estado e dispara todos os eventos corretos (change, input, click)
+  // que o React escuta nativamente sem precisar de hacks de protótipo complexos.
+  element.click();
+};
+
+// ============ LÓGICA DE CHECKBOX GROUP ============
+
+/**
+ * Helper interno: Recalcula o estado visual (Checked/Indeterminate) de um Mestre
+ * baseado nos seus filhos. O estado 'indeterminate' é puramente visual.
  */
 const updateMasterState = (master: HTMLInputElement, form: HTMLElement) => {
   const groupName = master.dataset.checkboxMaster;
@@ -136,18 +163,16 @@ const updateMasterState = (master: HTMLInputElement, form: HTMLElement) => {
     master.indeterminate = false;
   } else {
     master.checked = false;
-    master.indeterminate = true; // Estado visual "tracinho" (Tri-state)
+    master.indeterminate = true; // Visualmente vira um traço (-)
   }
 };
 
 /**
  * Inicializa o estado visual de todos os Mestres dentro de um container.
- * Deve ser chamado ao montar o form ou após resetar dados (Edição),
- * para garantir que o "Selecionar Todos" reflita os dados carregados.
+ * Deve ser chamado ao montar o form ou após resetar dados.
  */
 export const initializeCheckboxMasters = (root: HTMLElement) => {
   const masters = root.querySelectorAll<HTMLInputElement>('input[type="checkbox"][data-checkbox-master]');
-  
   masters.forEach(master => {
     const context = master.form || root;
     updateMasterState(master, context as HTMLElement);
@@ -155,39 +180,29 @@ export const initializeCheckboxMasters = (root: HTMLElement) => {
 };
 
 /**
- * Sincroniza a lógica de Grupo Mestre/Detalhe.
- * Lida com duas direções de interação:
- * 1. Clique no Mestre -> Marca/Desmarca filhos permitidos.
- * 2. Clique no Filho -> Recalcula estado do Mestre.
+ * Sincroniza interação (Clique Mestre -> Filhos OU Clique Filho -> Mestre).
+ * Chamado automaticamente pelo useForm no evento 'change'.
  */
 export const syncCheckboxGroup = (target: HTMLInputElement, form: HTMLElement) => {
   // CASO A: Mestre Clicado (Controle Downstream)
   if (target.dataset.checkboxMaster) {
     const groupName = target.dataset.checkboxMaster;
     const children = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${groupName}"]`);
-    const isChecked = target.checked;
+    
+    // O target.checked já reflete o estado desejado pós-clique
+    const desiredState = target.checked;
     
     children.forEach(child => {
-      // REGRA DE OURO: O Mestre jamais deve alterar inputs desabilitados (bloqueados por regra de negócio)
-      if (child.disabled) return;
-
-      if (child.checked !== isChecked) {
-        child.checked = isChecked;
-        // DISPARO MANUAL DE EVENTO:
-        // Necessário pois alterar .checked via JS não dispara eventos nativos.
-        // O useForm precisa ouvir 'change' para marcar o campo como touched e revalidar.
-        child.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      // Usa setNativeChecked para garantir disparo de eventos e respeito ao disabled
+      setNativeChecked(child, desiredState);
     });
     
-    // Força o estado visual final do mestre (remove indeterminate residual se houver)
-    target.indeterminate = false;
-    target.checked = isChecked;
+    // Recalcula o mestre no final (para lidar com casos onde filhos disabled impediram seleção total)
+    updateMasterState(target, form);
     return;
   }
 
   // CASO B: Filho Clicado (Controle Upstream)
-  // Se o filho mudou, precisamos avisar o Mestre para verificar se virou Indeterminado/Checked
   if (target.name) {
     const master = form.querySelector<HTMLInputElement>(`input[type="checkbox"][data-checkbox-master="${target.name}"]`);
     if (master) {
