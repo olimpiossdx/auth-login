@@ -1,5 +1,5 @@
 ````markdown
-# 🚀 React Hybrid Form `v0.4.13.2`
+# 🚀 React Hybrid Form `v0.4.14`
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/react-18%2B-cyan)
@@ -8,18 +8,18 @@
 
 Uma arquitetura de formulários para React focada em **alta performance**, **acessibilidade (a11y)** e uso robusto da **API de Validação Nativa do DOM**.
 
-> **💡 Filosofia:** O estado do formulário vive no DOM, não no React. O React entra apenas para orquestrar a validação complexa e a submissão. Zero re-renders ao digitar.
+> **💡 Filosofia:** O estado do formulário vive no DOM, não no React. O React entra apenas para orquestrar a validação complexa, a submissão e componentes ricos.
 
 ---
 
-## ✨ Destaques
+## ✨ Destaques da Versão
 
 - **🏎️ Performance Extrema:** Componentes não controlados (*Uncontrolled*) por padrão. Digitar em um input não causa re-renderização do formulário.
-- **🛡️ Validação Híbrida:** Combina `required`, `pattern` e `type` nativos do HTML com funções de validação customizadas (JS) que se integram à UI nativa do navegador (`setCustomValidity`).
-- **✅ Checkbox Intelligence:** Distinção automática entre Booleanos (Flag) e Arrays (Grupos) baseada na estrutura do DOM.
-- **👑 Master/Detail Checkboxes:** Funcionalidade "Selecionar Todos" declarativa via atributo HTML (`data-checkbox-master`), sem necessidade de hooks manuais.
-- **🔄 Sincronia Explícita:** Padrões claros para carregar dados (Load/Edit) garantindo que a UI do React e o DOM estejam sempre em sintonia.
-- **🧩 Componentes Ricos:** Padrões para `Autocomplete` (Shadow Select) e `StarRating` (Anchor Input).
+- **🔄 Autocomplete Enterprise:** Suporte completo a **Busca Assíncrona (Server-Side)**, **Infinite Scroll (Paginação)** e tratamento de erros de rede, mantendo a validação nativa.
+- **⭐ StarRating 2.0:** Totalmente acessível via teclado (Setas, Home, End), customizável (N estrelas) e reativo a resets externos.
+- **🛡️ Validação Híbrida:** Integração perfeita entre validação customizada JS e balões de erro nativos do navegador (`reportValidity`).
+- **✅ Checkbox Intelligence:** Gestão automática de grupos e estado "Indeterminado" via atributos HTML (`data-checkbox-master`).
+- **🔌 Native Bypass:** Arquitetura interna robusta que permite alterar valores do DOM via código e "acordar" o React automaticamente.
 
 ---
 
@@ -30,22 +30,22 @@ src/
 ├── hooks/
 │   └── useForm.ts        # O Core. Gerencia validação, submit, leitura do DOM e Observer.
 ├── components/
-│   ├── Autocomplete.tsx  # Input com filtro + Select Oculto (Shadow Select Pattern).
-│   ├── StarRating.tsx    # Avaliação com SVG + Input Âncora (Anchor Input Pattern).
-│   └── TabButton.tsx     # Navegação Stateless.
+│   ├── Autocomplete.tsx  # Input Async com filtro, paginação e Select Oculto (Shadow Select).
+│   ├── StarRating.tsx    # Avaliação acessível com SVG + Input Âncora (Anchor Input).
+│   └── TabButton.tsx     # Componente UI Stateless.
 ├── utils/
 │   ├── props.ts          # Definições de Tipos (TypeScript).
-│   └── utilities.ts      # Helpers de DOM, Parser de valores e Lógica de Checkbox.
+│   └── utilities.ts      # Helpers de DOM, Parser, React Bypass e Lógica de Checkbox.
 └── scenarios/
-    ├── CheckboxGroupForm.tsx # Exemplo de Grupos, Reatividade e Ciclo de Vida.
+    ├── AsyncAutocompleteExample.tsx # Demo de API, Paginação e Debounce.
+    ├── CheckboxGroupForm.tsx        # Demo de Grupos e Ciclo de Vida.
+    ├── StarRatingExample.tsx        # Demo de Customização e Acessibilidade.
     └── ...
 ````
 
 -----
 
-## 🛠️ Como Usar
-
-### 1\. O Hook `useForm`
+## 🛠️ Hook Core: `useForm`
 
 Conecte o formulário HTML à lógica React sem prender os valores no State.
 
@@ -53,7 +53,7 @@ Conecte o formulário HTML à lógica React sem prender os valores no State.
 import useForm from './hooks/useForm';
 
 const MyForm = () => {
-  const { handleSubmit, getValue, setValidators } = useForm("my-form-id");
+  const { handleSubmit, getValue, setValidators, resetSection } = useForm("my-form-id");
 
   const onSubmit = (data) => {
     console.log("JSON Submetido:", data);
@@ -68,112 +68,104 @@ const MyForm = () => {
 };
 ```
 
-### 2\. Validação Customizada
+-----
 
-Injete regras de negócio que o HTML não cobre. O erro aparecerá no balão nativo do navegador.
+## 🧩 Componentes Avançados
+
+### 1\. Autocomplete (Async & Infinite Scroll)
+
+Um componente de seleção poderoso que suporta dados locais e remotos.
+
+**Recursos:**
+
+  * **Shadow Select Pattern:** Mantém um `<select>` oculto para garantir que o dado exista no DOM.
+  * **Async Search:** Recebe `onSearch` para delegar a busca ao pai.
+  * **Infinite Scroll:** Recebe `onLoadMore` para carregar páginas sob demanda.
+
+<!-- end list -->
 
 ```tsx
-const validarIdade = (value, field) => {
-  if (value < 18) {
-    return { message: "Você precisa ser maior de idade.", type: "error" };
-  }
-};
+<Autocomplete
+  name="usuario_id"
+  label="Buscar Usuário"
+  // Modo Async
+  options={options} 
+  onSearch={handleSearch}      // (query) => void
+  onLoadMore={handleLoadMore}  // () => void
+  isLoading={isLoading}        // Spinner no input
+  isLoadingMore={isLoadingMore}// Spinner no rodapé da lista
+  hasMore={hasMore}            // Controla se chama loadMore
+  errorMessage={errorMsg}      // Exibe erro na lista
+  // Config
+  debounceTime={300}
+  clearable
+  required
+/>
+```
 
-// No componente:
-useEffect(() => {
-  setValidators({ validarIdade });
-}, [setValidators]);
+### 2\. StarRating (Acessível)
 
-// No HTML:
-<input name="idade" type="number" data-validation="validarIdade" />
+Componente de avaliação que respeita a semântica WAI-ARIA `role="slider"`.
+
+**Recursos:**
+
+  * **Anchor Input Pattern:** Usa um input invisível clicável para receber o foco do balão de erro nativo.
+  * **Customizável:** Suporta `maxStars` e classes CSS.
+  * **Teclado:** Setas ajustam valor, `Home` zera, `End` maximiza.
+
+<!-- end list -->
+
+```tsx
+<StarRating 
+  name="nps_score"
+  label="Qual a probabilidade de nos recomendar?"
+  maxStars={10} 
+  starClassName="w-6 h-6 text-purple-500"
+  onChange={(val) => console.log('Nota:', val)}
+  required
+/>
 ```
 
 -----
 
-## 🧠 Lógica de Dados (`getValue`)
+## 🌳 Checkbox Groups Inteligentes
 
-O sistema lê o DOM e converte para JSON estruturado automaticamente, inferindo tipos.
-
-| Cenário HTML | Comportamento Interno | Resultado JSON |
-| :--- | :--- | :--- |
-| **Campos Simples** | `name="email"` | `{ "email": "..." }` |
-| **Aninhado** | `name="user.city"` | `{ "user": { "city": "..." } }` |
-| **Checkbox (Único)** | `name="terms"` (1 elemento no DOM) | `{ "terms": true }` (ou valor se definido) |
-| **Checkbox (Grupo)** | `name="roles"` (2+ elementos no DOM) | `{ "roles": ["admin", "editor"] }` |
-
------
-
-## 🌳 Checkbox Groups (Novo na v0.4.13)
-
-A biblioteca gerencia grupos de checkboxes e o estado "Indeterminado" (traço) automaticamente.
-
-### 1\. Declaração do Grupo (HTML Puro)
-
-Para criar um grupo onde múltiplos checkboxes formam um Array:
+Crie grupos hierárquicos (Selecionar Todos) usando apenas atributos HTML. A biblioteca gerencia a lógica.
 
 ```tsx
-<div>
-   <label>Permissões:</label>
-   {/* Validação ancorada no primeiro item */}
-   <input type="checkbox" name="permissoes" value="ler" data-validation="validarArray" /> 
-   <input type="checkbox" name="permissoes" value="escrever" />
-</div>
-```
-
-**JSON:** `{ "permissoes": ["ler", "escrever"] }`
-
-### 2\. O Atributo "Mestre" (Select All)
-
-Para adicionar um botão "Selecionar Todos", basta usar o atributo `data-checkbox-master`. Não é necessário JavaScript extra.
-
-```tsx
-{/* O Mestre: Controla quem tiver name="permissoes" */}
-<input type="checkbox" data-checkbox-master="permissoes" /> Selecionar Todos
+{/* O Mestre: Controla inputs com name="permissoes" */}
+<label>
+  <input type="checkbox" data-checkbox-master="permissoes" /> 
+  Selecionar Todos
+</label>
 
 {/* Os Filhos */}
-<input type="checkbox" name="permissoes" value="A" />
-<input type="checkbox" name="permissoes" value="B" disabled /> {/* Ignorado pelo Mestre */}
+<input type="checkbox" name="permissoes" value="ler" />
+<input type="checkbox" name="permissoes" value="escrever" />
+<input type="checkbox" name="permissoes" value="excluir" disabled /> {/* Ignorado pelo mestre */}
 ```
+
+**Resultado JSON:** `{ "permissoes": ["ler", "escrever"] }`
 
 -----
 
-## 🔄 Ciclo de Vida: Edição e Cancelamento
+## 🔄 Ciclo de Vida: Load & Reset
 
-Para carregar dados de uma API ou resetar o formulário, usamos o padrão de **Sincronia Explícita**.
+Para carregar dados de uma API (Edição) ou cancelar alterações, use o `resetSection`.
 
-Como o React controla a exibição de campos condicionais (Ilhas de Reatividade) e o DOM controla os valores, devemos atualizar ambos ao carregar dados.
+> **Nota:** Graças ao mecanismo de **Native Bypass**, o `resetSection` atualiza o DOM e dispara eventos que "acordam" o React automaticamente, mantendo a UI sincronizada.
 
 ```tsx
-// Exemplo de Handler de Edição
 const handleLoadData = () => {
-    // 1. Atualiza a UI Reativa (React State)
-    // Baseado nos DADOS, decidimos o que mostrar/esconder
-    const deveMostrarMotivo = DADOS_API.interesses.includes('cancelamento');
-    setShowMotivoInput(deveMostrarMotivo);
+    // Preenche o formulário e notifica componentes visuais (StarRating, Autocomplete)
+    resetSection("", DADOS_API); 
+};
 
-    // 2. Atualiza o DOM (Preenche inputs, marca checkboxes)
-    // Usamos setTimeout para garantir que o React já renderizou os inputs condicionais
-    setTimeout(() => {
-        resetSection("", DADOS_API); 
-    }, 0);
+const handleCancel = () => {
+    // Reseta para o estado original
+    resetSection("", null);
 };
 ```
-
------
-
-## 🎨 Padrões para Componentes Customizados
-
-### Pattern 1: Shadow Select (`Autocomplete`)
-
-1.  Mantenha um `<select>` oculto (`clip: rect(0,0,0,0)`) sincronizado.
-2.  Use `defaultValue` no select para manter o componente **Uncontrolled**.
-3.  No evento `onInvalid` do select, transfira a mensagem para o input visível (`reportValidity`).
-
-### Pattern 2: Anchor Input (`StarRating`)
-
-1.  Renderize um `<input>` invisível (`opacity: 0`, `w-full`, `bottom-0`).
-2.  Garanta que ele seja "clicável" (`pointer-events-auto`) para o navegador aceitar exibir o balão.
-3.  A validação nativa apontará para este input âncora.
 
 -----
 
@@ -181,15 +173,11 @@ const handleLoadData = () => {
 
 Funções puras exportadas para uso geral:
 
+  - `setNativeValue(element, value)`: Define valor e dispara eventos, burlando o bloqueio de Synthetic Events do React.
   - `getFormFields(root)`: Busca inputs válidos dentro de qualquer container.
   - `setNestedValue(obj, path, value)`: Cria objetos profundos a partir de strings de caminho.
   - `syncCheckboxGroup(target, form)`: Lógica central que sincroniza Mestres e Filhos.
-  - `initializeCheckboxMasters(root)`: Recalcula estado visual dos Mestres ao carregar a página.
-  - `setNativeValue(element, value)`: Define valor em inputs e dispara eventos para acordar o React (Bypass).
 
 ### Licença
 
 MIT
-
-```
-```
