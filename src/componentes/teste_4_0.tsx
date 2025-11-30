@@ -8,6 +8,7 @@ import CurriculumForm from "../paginas/teste/tab-curriculum";
 import CheckboxGroupForm from "../paginas/teste/tab-checkbox-group-form";
 import TabModal from "../paginas/teste/tab-modal";
 import NestedLevelForm from "./nested-level-form";
+import TabStarRatingExample from "../paginas/teste/tab-rating";
 
 // Foca no nova tab/formulário-ativo
 const Teste: React.FC = () => {
@@ -23,6 +24,7 @@ const Teste: React.FC = () => {
     checkboxGroup: <CheckboxGroupForm />,
     tabModal: <TabModal />,
     nestedLevelForm: <NestedLevelForm />,
+    starRatingExample: <TabStarRatingExample />,
   };
 
   return (<div className="bg-gray-800 text-white min-h-screen p-2 sm:p-4 font-sans">
@@ -82,6 +84,12 @@ const Teste: React.FC = () => {
           tabId="nestedLevelForm"
           label="Form com N níveis"
           isActive={activeTab === "nestedLevelForm"}
+          onClick={setActiveTab}
+        />
+        <TabButton
+          tabId="starRatingExample"
+          label="Exemplo Star Rating"
+          isActive={activeTab === "starRatingExample"}
           onClick={setActiveTab}
         />
       </div>

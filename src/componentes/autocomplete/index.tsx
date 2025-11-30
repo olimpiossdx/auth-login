@@ -67,6 +67,30 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
     }
   }, [selectedValue]);
 
+    React.useEffect(() => {
+      const select = selectRef.current;
+      if (!select) return;
+
+      const handleExternalChange = () => {
+          // O DOM mudou (resetSection). Precisamos atualizar o visual.
+          const newValue = select.value;
+          
+          // Encontra o label correspondente ao novo valor (ID)
+          const found = options.find(opt => opt.value === newValue);
+          const newLabel = found ? (found.label || String(found.children)) : "";
+          
+          // Atualiza estados visuais
+          setSelectedValue(newValue);
+          setInputValue(newLabel);
+      };
+
+      select.addEventListener('change', handleExternalChange);
+      
+      return () => {
+          select.removeEventListener('change', handleExternalChange);
+      };
+  }, [options]);
+  
   // --- ATUALIZAÇÃO DO SELECT OCULTO ---
   const updateHiddenSelect = (newSelectedValue: string) => {
     setSelectedValue(newSelectedValue);
