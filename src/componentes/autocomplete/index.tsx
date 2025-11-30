@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -103,29 +103,29 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   };
 
   // Estados Visuais
-  const [inputValue, setInputValue] = useState<string>("");
-  const [selectedValue, setSelectedValue] = useState<string>(initialValue);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeIndex, setActiveIndex] = useState<number>(-1);
-  const [isTyping, setIsTyping] = useState(false);
+  const [inputValue, setInputValue] = React.useState<string>("");
+  const [selectedValue, setSelectedValue] = React.useState<string>(initialValue);
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const [activeIndex, setActiveIndex] = React.useState<number>(-1);
+  const [isTyping, setIsTyping] = React.useState(false);
 
   // Estado para posicionamento do Portal
-  const [dropdownCoords, setDropdownCoords] = useState({
+  const [dropdownCoords, setDropdownCoords] = React.useState({
     top: 0,
     left: 0,
     width: 0,
   });
 
   // Refs de Infraestrutura
-  const selectRef = useRef<HTMLSelectElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const visibleInputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectRef = React.useRef<HTMLSelectElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const visibleInputRef = React.useRef<HTMLInputElement>(null);
+  const listRef = React.useRef<HTMLUListElement>(null);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- 1. SINCRONIA DOM BLINDADA (Edição/Reset) ---
   // Atualiza o input visual se o valor do select oculto mudar "por fora" (useForm)
-  useEffect(() => {
+  React.useEffect(() => {
     const select = selectRef.current;
     if (!select) return;
 
@@ -164,7 +164,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     updateDropdownPosition();
     // Recalcula ao scrollar ou redimensionar a janela para manter a lista colada no input
     window.addEventListener("resize", updateDropdownPosition);
@@ -181,7 +181,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   }, [showSuggestions]);
 
   // --- 3. SCROLL AUTOMÁTICO NA LISTA (Acessibilidade) ---
-  useEffect(() => {
+  React.useEffect(() => {
     if (showSuggestions && activeIndex >= 0 && listRef.current) {
       const activeItem = listRef.current.children[activeIndex] as HTMLElement;
       if (activeItem) {
@@ -212,7 +212,7 @@ const Autocomplete: React.FC<AutocompleteProps> = ({
   };
 
   // --- FILTRO DE OPÇÕES ---
-  const filteredSuggestions = useMemo(() => {
+  const filteredSuggestions = React.useMemo(() => {
     // Se for busca remota, confiamos no Pai e mostramos tudo
     if (onSearch) return options;
 
