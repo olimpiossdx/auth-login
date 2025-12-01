@@ -11,6 +11,7 @@ import NestedLevelForm from "../../componentes/nested-level-form";
 import TabStarRatingExample from "./tab-rating";
 import TabAsyncAutocompleteExample from "./tab-autocomplete";
 import ValidationFeedbackExample from "./tab-validacao";
+import RegistrationComplexExample from "./tab-registration";
 
 // Foca no nova tab/formulário-ativo
 const Homologacao: React.FC = () => {
@@ -29,6 +30,7 @@ const Homologacao: React.FC = () => {
     starRatingExample: <TabStarRatingExample />,
     asyncAutocompleteExample: <TabAsyncAutocompleteExample />,
     validationFeedbackExample: <ValidationFeedbackExample />,
+    registrationComplexExample: <RegistrationComplexExample />,
   };
 
   return (<div className="bg-gray-800 text-white min-h-screen p-2 sm:p-4 font-sans">
@@ -106,6 +108,12 @@ const Homologacao: React.FC = () => {
           tabId="validationFeedbackExample"
           label="Validação"
           isActive={activeTab === "validationFeedbackExample"}
+          onClick={setActiveTab}
+        />
+        <TabButton
+          tabId="registrationComplexExample"
+          label="Registro"
+          isActive={activeTab === "registrationComplexExample"}
           onClick={setActiveTab}
         />
       </div>
