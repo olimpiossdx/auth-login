@@ -19,7 +19,7 @@ const HybridFormSimple = ({ }) => {
   const isEditingAny = editingId !== null;
   const originalEditDataRef = React.useRef<any>(null);
 
-  const validarComentario = React.useCallback((value: any, _: FormField | null, formValues: IMyHybridForm): ValidationResult => {
+  const validarComentario = React.useCallback((value: string, _: FormField | null, formValues: IMyHybridForm): ValidationResult => {
     const valueRatingForm = Number(formValues.rating);
 
     if (valueRatingForm > 0 && valueRatingForm <= 3 && !value)

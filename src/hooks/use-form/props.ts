@@ -15,7 +15,7 @@ export interface IAnyObject {
 export interface IValidationResult {
   message: string;
   type: "error" | "warning" | "info" | "success";
-}
+};
 
 /**
  * O tipo de retorno da função de validação.

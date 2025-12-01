@@ -37,7 +37,7 @@ const CheckboxGroupForm = () => {
   // Usamos 'any' no valor para satisfazer a interface genérica ValidateFn<T>
   // Na prática, sabemos que 'values' será string[] ou undefined vindo do checkbox group.
 
-  const validarInteresses = React.useCallback((values: any) => {
+  const validarInteresses = React.useCallback((values: string[]) => {
     if (!values || (Array.isArray(values) && values.length === 0)) {
       return { message: "Selecione ao menos uma área.", type: "error" as const };
     }

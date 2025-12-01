@@ -33,11 +33,9 @@ const NestedListForm = ({ }) => {
       const rua = formValues.contatos?.[cI]?.enderecos?.[aI]?.rua;
 
       if (rua && !value)
-        return {
-          message: "Cidade obrigatória se rua preenchida.",
-          type: "error",
-        };
-    }
+        return { message: "Cidade obrigatória se rua preenchida.", type: "error", };
+    };
+
     return undefined;
   }, []);
 

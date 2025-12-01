@@ -1,7 +1,6 @@
 import React from 'react';
-import { CheckCircle, AlertTriangle, Trash2, Lock, FileText, Layers, User,  Wand2, Settings, ChevronRight,  Bell, Shield, CreditCard,  MessageSquare, Star } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Trash2, Lock, FileText, Layers, User, Wand2, Settings, ChevronRight, Bell, Shield, CreditCard, MessageSquare, Star } from 'lucide-react';
 import showModal from '../../componentes/modal/hook';
-
 
 const DeleteFooter = ({ closeModal }: any) => (
   <>
@@ -21,10 +20,10 @@ const LoginForm = ({ closeModal }: any) => {
     setTimeout(() => {
       setLoading(false);
       closeModal();
-      showModal({ 
-        title: "Bem-vindo", 
-        content: "Login realizado com sucesso!", 
-        size: "standard" 
+      showModal({
+        title: "Bem-vindo",
+        content: "Login realizado com sucesso!",
+        size: "standard"
       });
     }, 1500);
   };
@@ -71,11 +70,11 @@ const ReportContent = () => (
 // EXEMPLO 6: Wizard (Passo a Passo)
 const WizardContent = ({ closeModal }: any) => {
   const [step, setStep] = React.useState(1);
-  
+
   const steps = [
-    { title: "Dados Pessoais", icon: <User size={20}/> },
-    { title: "Preferências", icon: <Settings size={20}/> },
-    { title: "Revisão", icon: <CheckCircle size={20}/> }
+    { title: "Dados Pessoais", icon: <User size={20} /> },
+    { title: "Preferências", icon: <Settings size={20} /> },
+    { title: "Revisão", icon: <CheckCircle size={20} /> }
   ];
 
   return (
@@ -131,17 +130,17 @@ const WizardContent = ({ closeModal }: any) => {
 
       {/* Footer Interno (Navegação) */}
       <div className="flex justify-between mt-6 pt-4 border-t border-gray-700">
-        <button 
+        <button
           onClick={() => step > 1 ? setStep(step - 1) : closeModal()}
           className="px-4 py-2 text-gray-400 hover:text-white"
         >
           {step === 1 ? 'Cancelar' : 'Voltar'}
         </button>
-        <button 
+        <button
           onClick={() => step < 3 ? setStep(step + 1) : (alert('Finalizado!'), closeModal())}
           className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded font-bold flex items-center gap-2"
         >
-          {step === 3 ? 'Finalizar' : <>Próximo <ChevronRight size={16}/></>}
+          {step === 3 ? 'Finalizar' : <>Próximo <ChevronRight size={16} /></>}
         </button>
       </div>
     </div>
@@ -167,11 +166,10 @@ const SettingsTabsContent = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-3 px-4 py-3 rounded text-left transition-all ${
-              activeTab === tab.id 
-              ? 'bg-cyan-600/20 text-cyan-400 border-l-4 border-cyan-500' 
+            className={`flex items-center gap-3 px-4 py-3 rounded text-left transition-all ${activeTab === tab.id
+              ? 'bg-cyan-600/20 text-cyan-400 border-l-4 border-cyan-500'
               : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-            }`}
+              }`}
           >
             <tab.icon size={18} />
             <span className="font-medium">{tab.label}</span>
@@ -183,28 +181,28 @@ const SettingsTabsContent = () => {
       <div className="flex-1 overflow-y-auto pr-2">
         {activeTab === 'profile' && (
           <div className="animate-fade-in space-y-4">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><User className="text-cyan-400"/> Editar Perfil</h3>
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><User className="text-cyan-400" /> Editar Perfil</h3>
             <div className="flex items-center gap-4 mb-6">
               <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center text-2xl font-bold">JD</div>
               <button className="text-cyan-400 text-sm hover:underline">Alterar foto</button>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="text-xs text-gray-500 uppercase">Nome</label><input defaultValue="John Doe" className="w-full bg-gray-700 rounded p-2 text-white border border-gray-600"/></div>
-              <div><label className="text-xs text-gray-500 uppercase">Username</label><input defaultValue="@johndoe" className="w-full bg-gray-700 rounded p-2 text-white border border-gray-600"/></div>
+              <div><label className="text-xs text-gray-500 uppercase">Nome</label><input defaultValue="John Doe" className="w-full bg-gray-700 rounded p-2 text-white border border-gray-600" /></div>
+              <div><label className="text-xs text-gray-500 uppercase">Username</label><input defaultValue="@johndoe" className="w-full bg-gray-700 rounded p-2 text-white border border-gray-600" /></div>
             </div>
             <div>
               <label className="text-xs text-gray-500 uppercase">Bio</label>
-              <textarea 
+              <textarea
                 defaultValue="Desenvolvedor Full Stack apaixonado por React."
                 className="w-full bg-gray-700 rounded p-2 text-white border border-gray-600 h-24"
               />
             </div>
           </div>
         )}
-        
+
         {activeTab === 'notif' && (
           <div className="animate-fade-in space-y-4">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Bell className="text-cyan-400"/> Preferências de Notificação</h3>
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Bell className="text-cyan-400" /> Preferências de Notificação</h3>
             {['Emails de Marketing', 'Notificações Push no Desktop', 'Novos Seguidores', 'Atualizações de Segurança'].map((item, i) => (
               <div key={i} className="flex items-center justify-between p-3 bg-gray-700/30 rounded border border-gray-700">
                 <span className="text-gray-300">{item}</span>
@@ -218,10 +216,10 @@ const SettingsTabsContent = () => {
 
         {/* Placeholders para as outras tabs */}
         {(activeTab === 'security' || activeTab === 'billing') && (
-           <div className="flex flex-col items-center justify-center h-full text-gray-500 animate-fade-in">
-             <Shield size={48} className="mb-4 opacity-20"/>
-             <p>Conteúdo da aba <strong>{tabs.find(t=>t.id===activeTab)?.label}</strong> em desenvolvimento.</p>
-           </div>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 animate-fade-in">
+            <Shield size={48} className="mb-4 opacity-20" />
+            <p>Conteúdo da aba <strong>{tabs.find(t => t.id === activeTab)?.label}</strong> em desenvolvimento.</p>
+          </div>
         )}
       </div>
     </div>
@@ -240,7 +238,7 @@ const FeedbackForm = ({ closeModal }: any) => {
     if (rating === 0) {
       return alert('Por favor, selecione uma nota.');
     };
-    
+
     setLoading(true);
     // Simula envio
     setTimeout(() => {
@@ -251,87 +249,86 @@ const FeedbackForm = ({ closeModal }: any) => {
   };
 
   return (<form onSubmit={handleSubmit} className="space-y-5">
-      {/* Avaliação por Estrelas */}
-      <div className="text-center mb-6">
-        <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">Sua Avaliação</label>
-        <div className="flex justify-center gap-2">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type="button"
-              onClick={() => setRating(star)}
-              className={`transition-transform hover:scale-110 focus:outline-none ${
-                star <= rating ? 'text-yellow-400' : 'text-gray-600'
+    {/* Avaliação por Estrelas */}
+    <div className="text-center mb-6">
+      <label className="block text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">Sua Avaliação</label>
+      <div className="flex justify-center gap-2">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => setRating(star)}
+            className={`transition-transform hover:scale-110 focus:outline-none ${star <= rating ? 'text-yellow-400' : 'text-gray-600'
               }`}
-            >
-              <Star size={32} fill={star <= rating ? "currentColor" : "none"} />
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-gray-500 mt-2 h-4">
-          {rating === 1 && "Muito ruim"}
-          {rating === 2 && "Ruim"}
-          {rating === 3 && "Regular"}
-          {rating === 4 && "Bom"}
-          {rating === 5 && "Excelente!"}
-        </p>
+          >
+            <Star size={32} fill={star <= rating ? "currentColor" : "none"} />
+          </button>
+        ))}
       </div>
+      <p className="text-xs text-gray-500 mt-2 h-4">
+        {rating === 1 && "Muito ruim"}
+        {rating === 2 && "Ruim"}
+        {rating === 3 && "Regular"}
+        {rating === 4 && "Bom"}
+        {rating === 5 && "Excelente!"}
+      </p>
+    </div>
 
-      {/* Categoria */}
-      <div>
-        <label className="block text-sm font-medium text-gray-400 mb-1">Tipo de Feedback</label>
-        <select 
-          value={category} 
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none"
-        >
-          <option value="suggestion">💡 Sugestão</option>
-          <option value="bug">🐛 Relatar Bug</option>
-          <option value="other">💬 Outros</option>
-        </select>
-      </div>
+    {/* Categoria */}
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Tipo de Feedback</label>
+      <select
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none"
+      >
+        <option value="suggestion">💡 Sugestão</option>
+        <option value="bug">🐛 Relatar Bug</option>
+        <option value="other">💬 Outros</option>
+      </select>
+    </div>
 
-      {/* Comentário */}
-      <div>
-        <label className="block text-sm font-medium text-gray-400 mb-1">Comentários</label>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder="Conte-nos mais detalhes..."
-          className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none h-24 resize-none"
-        />
-      </div>
+    {/* Comentário */}
+    <div>
+      <label className="block text-sm font-medium text-gray-400 mb-1">Comentários</label>
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder="Conte-nos mais detalhes..."
+        className="w-full bg-gray-700 border border-gray-600 rounded p-2 text-white focus:border-cyan-500 outline-none h-24 resize-none"
+      />
+    </div>
 
-      {/* Botões */}
-      <div className="flex gap-3 pt-2">
-        <button 
-          type="button" 
-          onClick={closeModal} 
-          className="flex-1 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
-        >
-          Cancelar
-        </button>
-        <button 
-          type="submit" 
-          disabled={loading}
-          className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white font-bold rounded transition-colors flex justify-center items-center gap-2"
-        >
-          {loading ? 'Enviando...' : 'Enviar Feedback'}
-        </button>
-      </div>
-    </form>);
+    {/* Botões */}
+    <div className="flex gap-3 pt-2">
+      <button
+        type="button"
+        onClick={closeModal}
+        className="flex-1 px-4 py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+      >
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        disabled={loading}
+        className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white font-bold rounded transition-colors flex justify-center items-center gap-2"
+      >
+        {loading ? 'Enviando...' : 'Enviar Feedback'}
+      </button>
+    </div>
+  </form>);
 };
 
 // --- Componente Principal da Demo ---
 
 const TabModal = () => {
-  
+
   // Funções de Abertura (Exemplos Anteriores)
   const openSuccessModal = () => showModal({ title: <div className="flex items-center gap-2 text-green-400"><CheckCircle size={24} /><span>Operação Realizada</span></div>, content: "Os dados foram salvos com sucesso no servidor.", footer: ({ closeModal }: any) => <button onClick={closeModal} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">OK, Entendido</button> });
   const openDeleteModal = () => showModal({ title: <div className="flex items-center gap-2 text-red-400"><AlertTriangle size={24} /><span>Excluir Usuário?</span></div>, content: "Esta ação é irreversível. Todos os dados associados a este usuário serão perdidos permanentemente.", footer: DeleteFooter, closeOnBackdropClick: false });
   const openLoginModal = () => showModal({ title: "Acesso Restrito", content: LoginForm, size: "standard", styleConfig: { width: 'max-w-md' } });
   const openFullModal = () => showModal({ title: "Relatório Mensal de Performance", content: ReportContent, size: "full", styleConfig: { padding: 'p-8' }, footer: ({ closeModal }: any) => <button onClick={closeModal} className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded">Fechar Relatório</button> });
-  
+
   const openStackedModal = () => {
     showModal({
       title: "Nível 1: Painel Principal",
@@ -357,16 +354,16 @@ const TabModal = () => {
     showModal({
       title: "Configurações da Conta",
       content: SettingsTabsContent,
-      size: "custom", 
+      size: "custom",
       styleConfig: { width: 'max-w-4xl' },
       footer: ({ closeModal }: any) => (
-         <div className="flex justify-between w-full">
-           <span className="text-xs text-gray-500 flex items-center">ID: 8493-2023-AF</span>
-           <div className="flex gap-2">
-             <button onClick={closeModal} className="text-gray-400 hover:text-white px-4">Cancelar</button>
-             <button onClick={() => {alert('Configurações salvas!'); closeModal();}} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">Salvar Alterações</button>
-           </div>
-         </div>
+        <div className="flex justify-between w-full">
+          <span className="text-xs text-gray-500 flex items-center">ID: 8493-2023-AF</span>
+          <div className="flex gap-2">
+            <button onClick={closeModal} className="text-gray-400 hover:text-white px-4">Cancelar</button>
+            <button onClick={() => { alert('Configurações salvas!'); closeModal(); }} className="bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2 rounded">Salvar Alterações</button>
+          </div>
+        </div>
       )
     });
   };
@@ -374,79 +371,79 @@ const TabModal = () => {
   // Nova função para abrir o formulário de feedback
   const openFeedbackModal = () => {
     showModal({
-      title: <div className="flex items-center gap-2"><MessageSquare className="text-cyan-400"/> <span>Envie seu Feedback</span></div>,
+      title: <div className="flex items-center gap-2"><MessageSquare className="text-cyan-400" /> <span>Envie seu Feedback</span></div>,
       content: FeedbackForm,
       styleConfig: { width: 'max-w-md' } // Tamanho ideal para formulários
     });
   };
 
   return (<div className="min-h-screen bg-gray-900 text-white p-8 font-sans">
-      <div className="max-w-6xl mx-auto">
-        <header className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-cyan-400 mb-2">Sistema de Modais Refinado</h1>
-          <p className="text-gray-400">Implementação imperativa com exemplos complexos de UI.</p>
-        </header>
+    <div className="max-w-6xl mx-auto">
+      <header className="mb-10 text-center">
+        <h1 className="text-3xl font-bold text-cyan-400 mb-2">Sistema de Modais Refinado</h1>
+        <p className="text-gray-400">Implementação imperativa com exemplos complexos de UI.</p>
+      </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          
-          {/* Card 1 */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-cyan-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-green-400"><CheckCircle /> <h3 className="font-bold text-white">Modelo Padrão</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Modal simples de sucesso com título customizado.</p>
-            <button onClick={openSuccessModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Padrão</button>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-          {/* Card 2 */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-red-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-red-400"><AlertTriangle /> <h3 className="font-bold text-white">Destrutivo</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Backdrop bloqueado e botões de perigo.</p>
-            <button onClick={openDeleteModal} className="w-full bg-red-900/30 hover:bg-red-900/50 text-red-200 py-2 rounded border border-red-800">Abrir Destrutivo</button>
-          </div>
-
-          {/* Card 3 */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-cyan-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-cyan-400"><User /> <h3 className="font-bold text-white">Login (Form)</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Gerenciamento de estado interno e loading.</p>
-            <button onClick={openLoginModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Login</button>
-          </div>
-
-          {/* Card 4 */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-purple-400"><FileText /> <h3 className="font-bold text-white">Full Screen</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Ocupa quase toda a tela. Ideal para relatórios.</p>
-            <button onClick={openFullModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Full</button>
-          </div>
-
-          {/* Card 5 */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-yellow-400"><Layers /> <h3 className="font-bold text-white">Stacking</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Abre um modal sobre o outro (ex: timeout).</p>
-            <button onClick={openStackedModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Stacked</button>
-          </div>
-
-          {/* NOVO: Card 6 - Wizard */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-blue-400"><Wand2 /> <h3 className="font-bold text-white">Wizard</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Passo a passo com barra de progresso e validação.</p>
-            <button onClick={openWizardModal} className="w-full bg-blue-900/30 hover:bg-blue-900/50 text-blue-200 py-2 rounded border border-blue-800">Abrir Wizard</button>
-          </div>
-
-          {/* NOVO: Card 7 - Settings */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-orange-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-orange-400"><Settings /> <h3 className="font-bold text-white">Configurações</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Layout complexo com navegação interna.</p>
-            <button onClick={openSettingsModal} className="w-full bg-orange-900/30 hover:bg-orange-900/50 text-orange-200 py-2 rounded border border-orange-800">Abrir Configurações</button>
-          </div>
-
-          {/* NOVO: Card 8 - Feedback Form */}
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-pink-500 transition-colors">
-            <div className="flex items-center gap-2 mb-4 text-pink-400"><MessageSquare /> <h3 className="font-bold text-white">Feedback</h3></div>
-            <p className="text-sm text-gray-400 mb-6 h-12">Formulário interativo com avaliação por estrelas.</p>
-            <button onClick={openFeedbackModal} className="w-full bg-pink-900/30 hover:bg-pink-900/50 text-pink-200 py-2 rounded border border-pink-800">Abrir Feedback</button>
-          </div>
-
+        {/* Card 1 */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-cyan-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-green-400"><CheckCircle /> <h3 className="font-bold text-white">Modelo Padrão</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Modal simples de sucesso com título customizado.</p>
+          <button onClick={openSuccessModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Padrão</button>
         </div>
+
+        {/* Card 2 */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-red-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-red-400"><AlertTriangle /> <h3 className="font-bold text-white">Destrutivo</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Backdrop bloqueado e botões de perigo.</p>
+          <button onClick={openDeleteModal} className="w-full bg-red-900/30 hover:bg-red-900/50 text-red-200 py-2 rounded border border-red-800">Abrir Destrutivo</button>
+        </div>
+
+        {/* Card 3 */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-cyan-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-cyan-400"><User /> <h3 className="font-bold text-white">Login (Form)</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Gerenciamento de estado interno e loading.</p>
+          <button onClick={openLoginModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Login</button>
+        </div>
+
+        {/* Card 4 */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-purple-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-purple-400"><FileText /> <h3 className="font-bold text-white">Full Screen</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Ocupa quase toda a tela. Ideal para relatórios.</p>
+          <button onClick={openFullModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Full</button>
+        </div>
+
+        {/* Card 5 */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-yellow-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-yellow-400"><Layers /> <h3 className="font-bold text-white">Stacking</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Abre um modal sobre o outro (ex: timeout).</p>
+          <button onClick={openStackedModal} className="w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-gray-600">Abrir Stacked</button>
+        </div>
+
+        {/* NOVO: Card 6 - Wizard */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-blue-400"><Wand2 /> <h3 className="font-bold text-white">Wizard</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Passo a passo com barra de progresso e validação.</p>
+          <button onClick={openWizardModal} className="w-full bg-blue-900/30 hover:bg-blue-900/50 text-blue-200 py-2 rounded border border-blue-800">Abrir Wizard</button>
+        </div>
+
+        {/* NOVO: Card 7 - Settings */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-orange-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-orange-400"><Settings /> <h3 className="font-bold text-white">Configurações</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Layout complexo com navegação interna.</p>
+          <button onClick={openSettingsModal} className="w-full bg-orange-900/30 hover:bg-orange-900/50 text-orange-200 py-2 rounded border border-orange-800">Abrir Configurações</button>
+        </div>
+
+        {/* NOVO: Card 8 - Feedback Form */}
+        <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-pink-500 transition-colors">
+          <div className="flex items-center gap-2 mb-4 text-pink-400"><MessageSquare /> <h3 className="font-bold text-white">Feedback</h3></div>
+          <p className="text-sm text-gray-400 mb-6 h-12">Formulário interativo com avaliação por estrelas.</p>
+          <button onClick={openFeedbackModal} className="w-full bg-pink-900/30 hover:bg-pink-900/50 text-pink-200 py-2 rounded border border-pink-800">Abrir Feedback</button>
+        </div>
+
       </div>
-    </div>);
+    </div>
+  </div>);
 };
 export default TabModal;
