@@ -166,11 +166,11 @@ const SettingsTabsContent = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-3 px-4 py-3 rounded text-left transition-all ${activeTab === tab.id
-              ? 'bg-cyan-600/20 text-cyan-400 border-l-4 border-cyan-500'
-              : 'text-gray-400 hover:bg-gray-700 hover:text-white'
-              }`}
-          >
+            className={`flex items-center gap-3 px-4 py-3 rounded text-left transition-all 
+              ${activeTab === tab.id
+                ? 'bg-cyan-600/20 text-cyan-400 border-l-4 border-cyan-500'
+                : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`
+            }>
             <tab.icon size={18} />
             <span className="font-medium">{tab.label}</span>
           </button>
