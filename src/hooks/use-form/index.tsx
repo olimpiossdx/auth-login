@@ -3,56 +3,65 @@ import { syncCheckboxGroup, initializeCheckboxMasters, setNativeValue, setNative
 import type { FieldListenerMap, ValidatorMap, FormField, Path, PathValue } from "./props";
 import { getFormFields, parseFieldValue, getRelativePath, setNestedValue, getNestedValue } from "./utilities";
 
+
 /**
- * Hook principal para gerenciamento de formulários com arquitetura Híbrida.
- * * @template FV - Tipo genérico representando o formato dos dados do formulário (Record<string, any>).
- * @param providedId - (Opcional) ID do formulário HTML. Se não fornecido, gera um ID único.
+ * Hook principal para gerenciamento de formulários híbridos.
+ * * Utiliza uma arquitetura **Uncontrolled** (Valores no DOM) para máxima performance,
+ * enquanto oferece APIs do React para validação complexa e orquestração.
+ * * @template FV - Tipo genérico representando a estrutura dos dados do formulário.
+ * @param providedId - (Opcional) ID do formulário HTML. Se omitido, um ID único é gerado.
+ * * @example
+ * interface UserData { name: string; age: number; }
+ * const { handleSubmit, getValue } = useForm<UserData>();
  */
 const useForm = <FV extends Record<string, any>>(providedId?: string) => {
-  // Identidade e Referências
   const formId = providedId || React.useId();
   const formRef = React.useRef<HTMLFormElement>(null);
-
-  // Armazena listeners de eventos para cleanup correto
   const fieldListeners = React.useRef<FieldListenerMap>(new Map());
   const validators = React.useRef<ValidatorMap<FV>>({});
-
-  // Mapa de Timers para a estratégia "Smart Debounce" de validação
   const debounceMap = React.useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  /**
-   * Helper: Conta ocorrências de campos com o mesmo nome.
-   * Usado para distinguir Checkbox Único (Boolean) de Checkbox Group (Array).
-   */
+  // SEMÁFORO: Bloqueia validação durante reset programático
+  const isResetting = React.useRef(false);
+
   const countFieldsByName = (form: HTMLElement, name: string): number => {
     return form.querySelectorAll(`[name="${name}"]`).length;
   };
 
   /**
-   * Registra regras de validação customizadas.
-   * Essas regras rodam em tempo real (debounce) e no submit.
+   * Registra regras de validação customizadas que rodam em tempo real e no submit.
+   * * A validação utiliza a estratégia **"Smart Debounce"**:
+   * - Limpa o erro imediatamente ao digitar (Reward Early).
+   * - Mostra o erro apenas após parar de digitar (Punish Late).
+   * * @param newValidators - Objeto onde a chave é o nome da regra (atributo `data-validation`)
+   * e o valor é a função validadora.
+   * * @example
+   * useEffect(() => {
+   * setValidators({
+   * isAdult: (val) => val < 18 ? { message: "Menor de idade", type: "error" } : undefined
+   * });
+   * }, []);
+   * // HTML: <input type="number" data-validation="isAdult" />
    */
   const setValidators = React.useCallback((newValidators: ValidatorMap<FV>) => {
     validators.current = newValidators;
   }, []);
 
   // =========================================================================
-  // 1. LEITURA DE DADOS (DOM -> JSON)
+  // 1. LEITURA DE DADOS
   // =========================================================================
 
-  // Implementação interna do getValue
   const getValueImpl = React.useCallback((namePrefix?: string): any => {
     const form = formRef.current;
     if (!form) return namePrefix ? undefined : ({} as FV);
 
     const fields = getFormFields(form, namePrefix);
 
-    // Otimização: Busca exata se um prefixo específico foi passado (ex: getValue('user.name'))
+    // Otimização: Busca exata se um prefixo específico foi passado
     if (namePrefix) {
       const exactMatch = fields.find(f => f.name === namePrefix);
       if (exactMatch) {
         if (exactMatch instanceof HTMLInputElement && exactMatch.type === 'checkbox') {
-          // Se for checkbox único, retorna valor direto
           if (countFieldsByName(form, exactMatch.name) === 1) {
             const hasValue = exactMatch.hasAttribute('value') && exactMatch.value !== 'on';
             return exactMatch.checked ? (hasValue ? exactMatch.value : true) : false;
@@ -74,13 +83,11 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
         const count = countFieldsByName(form, field.name);
 
         if (count > 1) {
-          // MODO GRUPO: Coleta todos os marcados como Array
           const allChecked = form.querySelectorAll<HTMLInputElement>(`input[type="checkbox"][name="${field.name}"]:checked`);
           const values = Array.from(allChecked).map(cb => cb.value);
           setNestedValue(formData, relativePath, values);
           processedNames.add(field.name);
         } else {
-          // MODO ÚNICO: Booleano ou Valor
           if (field.checked) {
             const hasExplicitValue = field.hasAttribute('value') && field.value !== 'on';
             setNestedValue(formData, relativePath, hasExplicitValue ? field.value : true);
@@ -99,30 +106,41 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   }, []);
 
   /**
-   * Extrai os dados do formulário.
-   * Possui sobrecargas para inferência de tipo inteligente baseada no caminho (Path).
+   * Lê os valores atuais dos inputs do formulário diretamente do DOM.
+   * Não causa re-renderização do componente React.
+   * * @param namePrefix - (Opcional) O nome do campo ou grupo que você deseja ler.
+   * - Se omitido: Retorna o objeto completo do formulário.
+   * - Se for um grupo (ex: "user"): Retorna o objeto aninhado `{ name: "...", age: ... }`.
+   * - Se for um campo exato (ex: "user.name"): Retorna o valor primitivo.
+   * * @returns O valor inferido (Objeto, Array ou Primitivo).
+   * * @example
+   * // 1. Pegar tudo
+   * const data = getValue(); 
+   * * // 2. Pegar um objeto aninhado
+   * const user = getValue("user"); // { name: "Ana", address: {...} }
+   * * // 3. Pegar valor direto (Type-safe)
+   * const email = getValue("user.email"); // "ana@teste.com"
    */
   const getValue = getValueImpl as {
-    /** Retorna todos os dados do formulário tipados. */
     (): FV;
-    /** Retorna o valor de um campo específico com o tipo correto (string, number, etc). */
     <P extends Path<FV>>(namePrefix: P): PathValue<FV, P>;
-    /** Fallback para strings dinâmicas. */
     (namePrefix: string): any;
   };
 
-  // ============ HELPER DE VALIDAÇÃO ============
+  // ============ VALIDAÇÃO UNITÁRIA ============
 
   const validateFieldInternal = (field: FormField, formValues: FV): string => {
     const validateFn = validators.current[field.dataset.validation || ''];
-    field.setCustomValidity(''); // Reseta estado nativo
 
-    // 1. Regras Nativas (HTML5)
+    // 1. Reseta validade customizada para permitir checagem nativa limpa
+    field.setCustomValidity('');
+
+    // 2. Checa regras nativas (required, pattern, type)
     if (!field.checkValidity()) {
       return field.validationMessage;
     }
 
-    // 2. Regras Customizadas (JS)
+    // 3. Checa regras customizadas (JS)
     if (validateFn) {
       const fieldValue = getNestedValue(formValues, field.name);
       const result = validateFn(fieldValue, field, formValues);
@@ -132,12 +150,33 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
         field.setCustomValidity(message);
         return message;
       }
-    };
+    }
 
-    return '';
+    return ''; // Válido
   };
 
-  // ============ VALIDAÇÃO EM MASSA (SUBMIT) ============
+  // ============ UI UPDATE ============
+
+  const updateErrorUI = (field: FormField, message: string) => {
+    const errorId = `error-${field.name}`;
+    const errorSlot = document.getElementById(errorId);
+
+    if (message) {
+      field.setAttribute('aria-invalid', 'true');
+      if (errorSlot) field.setAttribute('aria-describedby', errorId);
+    } else {
+      field.removeAttribute('aria-invalid');
+      field.removeAttribute('aria-describedby');
+    }
+
+    if (errorSlot) {
+      errorSlot.textContent = message;
+      errorSlot.setAttribute('data-visible', message ? 'true' : 'false');
+      errorSlot.style.display = message ? 'block' : 'none';
+    }
+  };
+
+  // ============ VALIDAÇÃO EM MASSA ============
 
   const revalidateAllCustomRules = React.useCallback(() => {
     const form = formRef.current;
@@ -147,18 +186,21 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
     const allFields = getFormFields(form);
     allFields.forEach(field => {
       if (field.disabled) return;
-      // Apenas valida silenciosamente para atualizar estado :invalid
-      validateFieldInternal(field, formValues);
+      const msg = validateFieldInternal(field, formValues);
+      updateErrorUI(field, msg);
     });
   }, [getValue]);
 
-  // ============ INTERAÇÃO & SMART DEBOUNCE ============
+  // ============ INTERAÇÃO ============
 
   const handleFieldInteraction = React.useCallback((event: Event) => {
+    // Se estamos num reset programático, ignoramos eventos para evitar conflitos
+    if (isResetting.current) return;
+
     const target = event.currentTarget;
     if (!(target instanceof HTMLElement)) return;
 
-    // Sincronia Imediata de Checkbox Group (Mestre/Detalhe)
+    // Checkbox Sync (Imediato)
     if (event.type === 'change' && target instanceof HTMLInputElement && target.type === 'checkbox') {
       if (formRef.current) syncCheckboxGroup(target, formRef.current);
     }
@@ -169,45 +211,35 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
     field.classList.add('is-touched');
     const formValues = getValue() as FV;
 
-    // Limpa timer anterior se houver (Debounce)
     if (debounceMap.current.has(field.name)) {
       clearTimeout(debounceMap.current.get(field.name));
       debounceMap.current.delete(field.name);
     }
 
-    // ESTRATÉGIA UX: "Reward Early, Punish Late"
-
-    // 1. BLUR (Saída): Valida imediatamente.
-    // Se inválido, a borda fica vermelha via CSS (.is-touched:invalid).
-    // Não mostramos balão aqui para não roubar foco.
+    // Blur: Valida imediatamente (Punish Late) mas sem balão intrusivo
     if (event.type === 'blur') {
-      validateFieldInternal(field, formValues);
+      const msg = validateFieldInternal(field, formValues);
+      updateErrorUI(field, msg);
       return;
     }
 
-    // 2. INPUT/CHANGE (Digitação): Validação Inteligente.
+    // Input/Change: Validação com Debounce (Reward Early)
     if (event.type === 'input' || event.type === 'change') {
       const wasInvalid = field.hasAttribute('aria-invalid') || !field.validity.valid;
-
-      // Se estava válido, não incomoda o usuário enquanto digita.
       if (!wasInvalid) return;
 
-      // Se estava inválido, verifica se corrigiu.
       const msg = validateFieldInternal(field, formValues);
 
       if (!msg) {
-        // REWARD: Se consertou, limpa o erro IMEDIATAMENTE (Borda volta ao normal).
-        // Não precisa fazer nada extra, o validateFieldInternal já limpou.
+        updateErrorUI(field, ''); // Limpa erro imediatamente ao corrigir
       } else {
-        // PUNISH LATE: Se continua errado, espera o usuário parar de digitar (600ms).
-        // Se parar e continuar errado, aí sim mostramos o balão de ajuda.
         const timer = setTimeout(() => {
-          // Verifica foco antes de mostrar balão (só mostra se ainda estiver focado)
+          updateErrorUI(field, msg);
+          // Só mostra balão se o usuário ainda estiver focado (ajuda contextual)
           if (document.activeElement === field) {
             field.reportValidity();
           }
         }, 600);
-
         debounceMap.current.set(field.name, timer);
       }
     }
@@ -216,61 +248,69 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   // ============ RESET / LOAD DATA ============
 
   /**
-   * Preenche o formulário com dados (ex: vindos de uma API) ou reseta.
-   * Usa a técnica de Native Bypass para garantir que a UI do React reaja.
+   * Preenche ou limpa campos do formulário programaticamente.
+   * Utiliza "Native Bypass" para disparar eventos e atualizar UIs reativas (ex: StarRating).
+   * * @param namePrefix - Prefixo do grupo a ser resetado ("" para tudo).
+   * @param originalValues - Objeto de dados para preencher. 
+   * - Se passar um Objeto: O formulário entra em modo de Edição/Preenchimento.
+   * - Se passar `null`: O formulário reseta para o `defaultValue` do HTML (Limpeza).
+   * * @example
+   * // Cenário A: Carregar dados da API
+   * resetSection("", { nome: "Carlos", admin: true });
+   * * // Cenário B: Limpar formulário
+   * resetSection("", null);
    */
   const resetSection = React.useCallback((namePrefix: string, originalValues: any) => {
     const form = formRef.current;
     if (!form) return;
 
-    const fields = getFormFields(form, namePrefix);
+    isResetting.current = true; // Bloqueia handlers de interação
 
-    fields.forEach(field => {
-      // Limpa validações pendentes
-      if (debounceMap.current.has(field.name)) {
-        clearTimeout(debounceMap.current.get(field.name));
-        debounceMap.current.delete(field.name);
-      }
-      field.setCustomValidity('');
+    try {
+      const fields = getFormFields(form, namePrefix);
 
-      const relativePath = getRelativePath(field.name, namePrefix);
-      let valueToApply = undefined;
-
-      if (originalValues) {
-        valueToApply = relativePath ? getNestedValue(originalValues, relativePath) : undefined;
-        if (valueToApply === undefined && !relativePath) {
-          valueToApply = getNestedValue(originalValues, field.name);
+      fields.forEach(field => {
+        if (debounceMap.current.has(field.name)) {
+          clearTimeout(debounceMap.current.get(field.name));
+          debounceMap.current.delete(field.name);
         }
-      }
+        updateErrorUI(field, '');
 
-      // Aplicação de Valor com Bypass
-      if (field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio')) {
-        let shouldCheck = false;
-        if (valueToApply !== undefined) {
-          if (field.type === 'checkbox' && Array.isArray(valueToApply)) {
-            shouldCheck = valueToApply.includes(field.value);
-          } else if (field.type === 'checkbox' && typeof valueToApply === 'boolean') {
-            shouldCheck = valueToApply;
+        const relativePath = getRelativePath(field.name, namePrefix);
+        let valueToApply = undefined;
+
+        if (originalValues) {
+          valueToApply = relativePath ? getNestedValue(originalValues, relativePath) : undefined;
+          if (valueToApply === undefined && !relativePath) valueToApply = getNestedValue(originalValues, field.name);
+        }
+
+        if (field instanceof HTMLInputElement && (field.type === 'checkbox' || field.type === 'radio')) {
+          let shouldCheck = false;
+          if (valueToApply !== undefined) {
+            if (field.type === 'checkbox' && Array.isArray(valueToApply)) shouldCheck = valueToApply.includes(field.value);
+            else if (field.type === 'checkbox' && typeof valueToApply === 'boolean') shouldCheck = valueToApply;
+            else shouldCheck = field.value === String(valueToApply);
           } else {
-            shouldCheck = field.value === String(valueToApply);
+            shouldCheck = field.defaultChecked;
           }
+          setNativeChecked(field, shouldCheck);
         } else {
-          shouldCheck = field.defaultChecked;
+          const newVal = String(valueToApply ?? (field as any).defaultValue ?? '');
+          setNativeValue(field, newVal);
         }
-        setNativeChecked(field, shouldCheck);
-      } else {
-        const newVal = String(valueToApply ?? (field as any).defaultValue ?? '');
-        setNativeValue(field, newVal);
-      }
 
-      field.classList.remove('is-touched');
-    });
+        field.classList.remove('is-touched');
+        field.setCustomValidity('');
+      });
 
-    // Recalcula visual dos grupos de checkbox
-    setTimeout(() => initializeCheckboxMasters(form), 0);
+      setTimeout(() => initializeCheckboxMasters(form), 0);
+
+    } finally {
+      setTimeout(() => { isResetting.current = false; }, 0);
+    }
   }, []);
 
-  // ============ INFRAESTRUTURA (LISTENERS) ============
+  // ============ INFRAESTRUTURA ============
 
   const addFieldInteractionListeners = (field: HTMLElement): void => {
     const isMaster = field.hasAttribute('data-checkbox-master');
@@ -280,13 +320,9 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
     if (((field as any).name || isMaster) && !fieldListeners.current.has(field)) {
       const listeners = { blur: handleFieldInteraction, change: handleFieldInteraction };
       field.addEventListener('blur', listeners.blur);
-
-      // Ouve INPUT para texto (melhor para debounce) e CHANGE para outros
       const inputEvent = (field instanceof HTMLInputElement && (field.type === 'text' || field.type === 'email' || field.type === 'password' || field.type === 'search')) ? 'input' : 'change';
-
       if (inputEvent === 'input') field.addEventListener('input', listeners.change);
       field.addEventListener('change', listeners.change);
-
       fieldListeners.current.set(field, listeners);
     }
   };
@@ -302,21 +338,17 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   };
 
   const setupDOMMutationObserver = (form: HTMLFormElement): () => void => {
-    // 1. Inicializa listeners
     const initialFields = getFormFields(form);
     initialFields.forEach(addFieldInteractionListeners);
-
     form.querySelectorAll('input[type="checkbox"][data-checkbox-master]').forEach(cb => {
       if (cb instanceof HTMLElement) addFieldInteractionListeners(cb);
     });
     initializeCheckboxMasters(form);
 
-    // 2. Observer
     const observer = new MutationObserver((mutations) => {
       let needsReinitMasters = false;
       mutations.forEach((mutation) => {
         if (mutation.type !== 'childList') return;
-
         mutation.addedNodes.forEach(node => {
           if (!(node instanceof HTMLElement)) return;
           addFieldInteractionListeners(node);
@@ -325,7 +357,6 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
             needsReinitMasters = true;
           }
         });
-
         mutation.removedNodes.forEach(node => {
           if (!(node instanceof HTMLElement)) return;
           removeFieldInteractionListeners(node);
@@ -334,7 +365,6 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
       });
       if (needsReinitMasters) initializeCheckboxMasters(form);
     });
-
     observer.observe(form, { childList: true, subtree: true });
     return () => {
       observer.disconnect();
@@ -348,6 +378,15 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
   };
 
   // ============ SUBMIT ============
+
+  /**
+   * Wrapper para o evento onSubmit do formulário.
+   * Gerencia automaticamente:
+   * 1. Prevenção do default.
+   * 2. Validação em massa (Nativa + Customizada).
+   * 3. Foco no primeiro campo inválido.
+   * * @param onValid - Função callback que recebe os dados (JSON) se a validação passar.
+   */
   const handleSubmit = React.useCallback((onValid: (data: FV) => void) =>
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -368,7 +407,6 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
       setTimeout(() => {
         if (!formRef.current) return;
         const isValid = formRef.current.checkValidity();
-
         if (!isValid) {
           focusFirstInvalidField(form);
           form.reportValidity();
@@ -379,26 +417,15 @@ const useForm = <FV extends Record<string, any>>(providedId?: string) => {
     }, [getValue, revalidateAllCustomRules]);
 
   const focusFirstInvalidField = (form: HTMLFormElement): void => {
-    const activeSection = form.querySelector('fieldset:not(:disabled)') || form;
-    const firstInvalid = activeSection.querySelector<HTMLElement>(':invalid');
-    if (!firstInvalid) return;
-
-    const focusableSibling = firstInvalid.parentElement?.querySelector<HTMLElement>(
-      'input:not([type="hidden"]), select, textarea, [tabindex="0"]'
-    );
-    if (focusableSibling) focusableSibling.focus();
-    else firstInvalid.focus();
+    const invalid = form.querySelector<HTMLElement>(':invalid');
+    if (!invalid) return;
+    const focusable = invalid.parentElement?.querySelector<HTMLElement>('input:not([type="hidden"]), select, textarea, [tabindex="0"]');
+    focusable ? focusable.focus() : invalid.focus();
   };
 
   React.useLayoutEffect(() => {
     const form = document.getElementById(formId) as HTMLFormElement;
-
-    if (!form) {
-      return;
-    };
-    formRef.current = form;
-    const cleanup = setupDOMMutationObserver(form);
-    return cleanup;
+    if (form) { formRef.current = form; return setupDOMMutationObserver(form); }
   }, [formId]);
 
   return { handleSubmit, setValidators, formId, resetSection, getValue };
