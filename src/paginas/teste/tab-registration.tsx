@@ -216,7 +216,7 @@ const RegistrationComplexExample = () => {
 
         <button
           type="submit"
-          className="w-full py-3 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold shadow-lg hover:scale-[1.02] transition-transform"
+          className="w-full py-3 rounded-lg bg-linear-to-r from-purple-600 to-blue-600 text-white font-bold shadow-lg hover:scale-[1.02] transition-transform"
         >
           Finalizar Cadastro
         </button>
