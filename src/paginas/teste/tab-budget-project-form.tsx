@@ -45,7 +45,43 @@ const MOCK_API_DATA: IProjetoForm = {
 };
 
 const BudgetProjectForm = () => {
-  const { handleSubmit, setValidators, formId, resetSection } = useForm<IProjetoForm>("budget-form");
+
+  const onSubmit = (data: IProjetoForm) => {
+    // Cálculo para o modal
+    const total = Number(data.projeto.orcamento_total);
+    const despesas = data.projeto?.despesas || [];
+    const gasto = despesas.reduce((acc, item) => acc + Number(item.valor), 0);
+
+    showModal({
+      title: "Orçamento Processado",
+      content: () => (
+        <div className="space-y-4 text-sm">
+          <div className="grid grid-cols-2 gap-4 bg-gray-900 p-3 rounded border border-gray-700">
+            <div>
+              <span className="block text-gray-500 text-xs">Status</span>
+              <strong className="text-white">
+                {total - gasto >= 0 ? "✅ Dentro do Orçamento" : "⛔ Estouro de Verba"}
+              </strong>
+            </div>
+            <div className="text-right">
+              <span className="block text-gray-500 text-xs">Saldo</span>
+              <strong className={total - gasto >= 0 ? "text-green-400" : "text-red-400"}>
+                R$ {(total - gasto).toFixed(2)}
+              </strong>
+            </div>
+          </div>
+          <pre className="text-xs bg-black p-3 rounded text-gray-300 overflow-auto">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </div>
+      )
+    });
+  };
+
+
+  const { formProps, setValidators, resetSection } = useForm<IProjetoForm>({
+    id: "budget-form", onSubmit: onSubmit
+  });
 
   // ESTADO DE DADOS (Data-Driven UI)
   const [formData, setFormData] = React.useState<IProjetoForm>(EMPTY_PROJECT);
@@ -110,39 +146,6 @@ const BudgetProjectForm = () => {
       resetSection("", null);
     }, 50);
   };
-
-  const onSubmit = (data: IProjetoForm) => {
-    // Cálculo para o modal
-    const total = Number(data.projeto.orcamento_total);
-    const despesas = data.projeto?.despesas || [];
-    const gasto = despesas.reduce((acc, item) => acc + Number(item.valor), 0);
-
-    showModal({
-      title: "Orçamento Processado",
-      content: () => (
-        <div className="space-y-4 text-sm">
-          <div className="grid grid-cols-2 gap-4 bg-gray-900 p-3 rounded border border-gray-700">
-            <div>
-              <span className="block text-gray-500 text-xs">Status</span>
-              <strong className="text-white">
-                {total - gasto >= 0 ? "✅ Dentro do Orçamento" : "⛔ Estouro de Verba"}
-              </strong>
-            </div>
-            <div className="text-right">
-              <span className="block text-gray-500 text-xs">Saldo</span>
-              <strong className={total - gasto >= 0 ? "text-green-400" : "text-red-400"}>
-                R$ {(total - gasto).toFixed(2)}
-              </strong>
-            </div>
-          </div>
-          <pre className="text-xs bg-black p-3 rounded text-gray-300 overflow-auto">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-        </div>
-      )
-    });
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
 
@@ -171,12 +174,7 @@ const BudgetProjectForm = () => {
       </div>
 
       {/* KEY: Força remontagem ao trocar de Novo <-> Editando para resetar defaultValues */}
-      <form
-        id={formId}
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-        key={mode === 'editando' ? 'loaded' : 'empty'}
-      >
+      <form {...formProps} noValidate key={mode === 'editando' ? 'loaded' : 'empty'}>
 
         {/* --- PAI: CARD DO PROJETO --- */}
         <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 relative overflow-hidden">

@@ -16,7 +16,7 @@ export interface IAddressListProps {
 const AddressList: React.FC<IAddressListProps> = ({
   contactIndex, initialAddresses, isEditing, isDisabled
 }) => {
-  const { fields: addressFields, append: appendAddress, remove: removeAddress, } = useList<IAddress>(initialAddresses.length > 0 ? initialAddresses : [{ rua: "", cidade: "" }]);
+  const { items: addressFields, add: appendAddress, remove: removeAddress, } = useList<IAddress>(initialAddresses.length > 0 ? initialAddresses : [{ rua: "", cidade: "" }]);
   return (<div className="ml-4 pl-4 border-l border-gray-600 mt-3 pt-3">
     <h5 className="text-sm font-semibold mb-2 text-gray-400 flex justify-between items-center">
       <span>Endereços</span>
@@ -40,7 +40,7 @@ const AddressList: React.FC<IAddressListProps> = ({
           type="text"
           placeholder="Rua, Nº"
           className="form-input text-sm"
-          defaultValue={addressField.value.rua}
+          defaultValue={addressField.data.rua}
           readOnly={!isEditing}
           disabled={isDisabled}
         />
@@ -49,7 +49,7 @@ const AddressList: React.FC<IAddressListProps> = ({
           type="text"
           placeholder="Cidade"
           className="form-input text-sm"
-          defaultValue={addressField.value.cidade}
+          defaultValue={addressField.data.cidade}
           data-validation="validarCidade"
           readOnly={!isEditing}
           disabled={isDisabled}

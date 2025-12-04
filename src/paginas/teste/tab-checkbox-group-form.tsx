@@ -24,7 +24,18 @@ const DADOS_API: IFormValues = {
 
 
 const CheckboxGroupForm = () => {
-  const { handleSubmit, setValidators, formId, resetSection } = useForm<IFormValues>("checkbox-group-form");
+  // Criando/repassando submit para o form com atualização de register para form nativo.
+  const onSubmit = (data: IFormValues) => {
+    showModal({
+      title: mode === 'novo' ? "Criar Registro" : "Salvar Edição",
+      content: () => (
+        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto border border-gray-700">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      ),
+    });
+  };
+  const { formProps, setValidators, resetSection, } = useForm<IFormValues>({ id: "checkbox-group-form", onSubmit: onSubmit });
 
   // UI States
   const [mode, setMode] = React.useState<'novo' | 'editando'>('novo');
@@ -104,176 +115,163 @@ const CheckboxGroupForm = () => {
     setIsCancelando(e.target.checked);
   };
 
-  const onSubmit = (data: IFormValues) => {
-    showModal({
-      title: mode === 'novo' ? "Criar Registro" : "Salvar Edição",
-      content: () => (
-        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto border border-gray-700">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      ),
-    });
-  };
-
   const handleClickSairEdicao = () => {
     setMode('novo');
     resetSection("", null);
     setIsCancelando(false);
   };
-  return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 max-w-5xl mx-auto">
 
-      <div className="flex justify-between items-center mb-6 pb-6 border-b border-gray-700">
-        <div>
-          <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
-            {mode === 'novo' ? '✨ Novo Cadastro' : '✏️ Editando Registro'}
-          </h2>
-          <p className="text-xs text-gray-400">Teste de Load/Reset com Sincronia Explícita.</p>
-        </div>
-        <div className="flex gap-2">
+  return (<div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 max-w-5xl mx-auto">
+    <div className="flex justify-between items-center mb-6 pb-6 border-b border-gray-700">
+      <div>
+        <h2 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
+          {mode === 'novo' ? '✨ Novo Cadastro' : '✏️ Editando Registro'}
+        </h2>
+        <p className="text-xs text-gray-400">Teste de Load/Reset com Sincronia Explícita.</p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleLoadData}
+          disabled={mode === 'editando'}
+          className="px-3 py-1.5 text-sm bg-blue-900 text-blue-200 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-800"
+        >
+          📥 Simular Edição (API)
+        </button>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="px-3 py-1.5 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors border border-gray-600"
+        >
+          ↺ {mode === 'novo' ? 'Limpar Tudo' : 'Desfazer Alterações'}
+        </button>
+
+        {/* NOVO: Botão para Sair do Modo Edição */}
+        {mode === 'editando' && (
           <button
             type="button"
-            onClick={handleLoadData}
-            disabled={mode === 'editando'}
-            className="px-3 py-1.5 text-sm bg-blue-900 text-blue-200 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-blue-800"
+            onClick={handleClickSairEdicao}
+            className="px-3 py-1.5 text-sm bg-red-900/50 text-red-200 rounded hover:bg-red-900 transition-colors border border-red-800"
           >
-            📥 Simular Edição (API)
+            ✕ Cancelar
           </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-3 py-1.5 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600 transition-colors border border-gray-600"
-          >
-            ↺ {mode === 'novo' ? 'Limpar Tudo' : 'Desfazer Alterações'}
-          </button>
+        )}
+      </div>
+    </div>
 
-          {/* NOVO: Botão para Sair do Modo Edição */}
-          {mode === 'editando' && (
-            <button
-              type="button"
-              onClick={handleClickSairEdicao}
-              className="px-3 py-1.5 text-sm bg-red-900/50 text-red-200 rounded hover:bg-red-900 transition-colors border border-red-800"
-            >
-              ✕ Cancelar
-            </button>
-          )}
+    <form {...formProps} noValidate className="grid md:grid-cols-2 gap-8 animate-in fade-in zoom-in duration-300">
+
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1">1. Unitários</h3>
+
+        <div className="bg-gray-900/50 p-4 rounded border border-gray-700 space-y-3">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" name="aceite" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+            <span className="text-gray-300">Li e aceito os termos</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <input type="checkbox" name="plano" value="premium" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-offset-gray-900" />
+            <span className="text-gray-300">Upgrade para Premium</span>
+          </label>
         </div>
       </div>
 
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate className="grid md:grid-cols-2 gap-8 animate-in fade-in zoom-in duration-300">
+      <div className="space-y-4">
+        <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1">2. Grupo & Reatividade</h3>
 
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1">1. Unitários</h3>
-
-          <div className="bg-gray-900/50 p-4 rounded border border-gray-700 space-y-3">
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" name="aceite" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
-              <span className="text-gray-300">Li e aceito os termos</span>
-            </label>
-
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <input type="checkbox" name="plano" value="premium" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-500 focus:ring-offset-gray-900" />
-              <span className="text-gray-300">Upgrade para Premium</span>
-            </label>
+        <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
+          <div className="mb-2">
+            <span className="font-bold text-white block">Áreas de Interesse <span className="text-red-400">*</span></span>
           </div>
-        </div>
 
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1">2. Grupo & Reatividade</h3>
+          {/* MESTRE: Auto-gerenciado via atributo */}
+          <label className="flex items-center gap-2 text-cyan-400 font-bold mb-2 cursor-pointer w-fit select-none hover:opacity-80">
+            <input type="checkbox" data-checkbox-master="interesses" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+            Selecionar Todos
+          </label>
 
-          <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
-            <div className="mb-2">
-              <span className="font-bold text-white block">Áreas de Interesse <span className="text-red-400">*</span></span>
-            </div>
-
-            {/* MESTRE: Auto-gerenciado via atributo */}
-            <label className="flex items-center gap-2 text-cyan-400 font-bold mb-2 cursor-pointer w-fit select-none hover:opacity-80">
-              <input type="checkbox" data-checkbox-master="interesses" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
-              Selecionar Todos
+          <div className="pl-4 border-l-2 border-gray-700 ml-1.5 flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
+              <input type="checkbox" name="interesses" value="frontend" data-validation="validarInteresses"
+                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+              Frontend
+            </label>
+            <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
+              <input type="checkbox" name="interesses" value="backend"
+                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+              Backend
+            </label>
+            <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
+              <input type="checkbox" name="interesses" value="fullstack" disabled
+                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
+              full stack
             </label>
 
-            <div className="pl-4 border-l-2 border-gray-700 ml-1.5 flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
-                <input type="checkbox" name="interesses" value="frontend" data-validation="validarInteresses"
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
-                Frontend
-              </label>
-              <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
-                <input type="checkbox" name="interesses" value="backend"
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
-                Backend
-              </label>
-              <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
-                <input type="checkbox" name="interesses" value="fullstack" disabled
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-500 focus:ring-offset-gray-900" />
-                full stack
-              </label>
+            {/* GATILHO REATIVO */}
+            <label className={`flex items-center gap-2 font-medium p-1 rounded -ml-1 transition-colors cursor-pointer ${isCancelando ? 'bg-yellow-900/20 text-yellow-200' : 'text-gray-400 hover:text-yellow-200'}`}>
+              <input
+                type="checkbox"
+                name="interesses"
+                value="cancelamento"
+                onChange={handleCancelamentoChange}
+                className="w-4 h-4 rounded border-yellow-600 bg-gray-700 text-yellow-500 focus:ring-offset-gray-900"
+              />
+              Quero Cancelar Conta
+            </label>
 
-              {/* GATILHO REATIVO */}
-              <label className={`flex items-center gap-2 font-medium p-1 rounded -ml-1 transition-colors cursor-pointer ${isCancelando ? 'bg-yellow-900/20 text-yellow-200' : 'text-gray-400 hover:text-yellow-200'}`}>
+            {/* ILHA DE REATIVIDADE: Renderizado pelo React State */}
+            {isCancelando && (
+              <div className="mt-2 animate-in slide-in-from-top-2 fade-in duration-300 pl-6 border-l-2 border-yellow-900/50 ml-1">
+                <label className="text-xs text-yellow-500 block mb-1 font-bold">Motivo Obrigatório:</label>
                 <input
-                  type="checkbox"
-                  name="interesses"
-                  value="cancelamento"
-                  onChange={handleCancelamentoChange}
-                  className="w-4 h-4 rounded border-yellow-600 bg-gray-700 text-yellow-500 focus:ring-offset-gray-900"
+                  type="text"
+                  name="motivo_cancelamento"
+                  data-validation="validarMotivo"
+                  placeholder="Por que você está saindo?"
+                  className="w-full bg-gray-800 border border-yellow-700/50 rounded px-2 py-1 text-sm text-white focus:border-yellow-500 outline-none placeholder-gray-600"
                 />
-                Quero Cancelar Conta
-              </label>
-
-              {/* ILHA DE REATIVIDADE: Renderizado pelo React State */}
-              {isCancelando && (
-                <div className="mt-2 animate-in slide-in-from-top-2 fade-in duration-300 pl-6 border-l-2 border-yellow-900/50 ml-1">
-                  <label className="text-xs text-yellow-500 block mb-1 font-bold">Motivo Obrigatório:</label>
-                  <input
-                    type="text"
-                    name="motivo_cancelamento"
-                    data-validation="validarMotivo"
-                    placeholder="Por que você está saindo?"
-                    className="w-full bg-gray-800 border border-yellow-700/50 rounded px-2 py-1 text-sm text-white focus:border-yellow-500 outline-none placeholder-gray-600"
-                  />
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* BLOCO 3: Dinâmico (Mantido igual) */}
-        <div className="space-y-4 md:col-span-2">
-          <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1 flex justify-between items-center">
-            3. Lista Dinâmica (Observer)
-            <button type="button" onClick={() => setTarefasExtras(p => [...p, Date.now()])} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-0.5 rounded text-xs lowercase border border-gray-600 transition-colors">
-              + add item
-            </button>
-          </h3>
-          <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
-            <label className="flex items-center gap-2 text-purple-400 font-bold mb-2 cursor-pointer w-fit hover:opacity-80">
-              <input type="checkbox" data-checkbox-master="tarefas" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
-              Marcar Concluídas
-            </label>
-            <div className="pl-4 border-l-2 border-gray-700 ml-1.5 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
-                <input type="checkbox" name="tarefas" value="setup" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
-                Setup Inicial
-              </label>
-              {tarefasExtras.map((id, idx) => (
-                <label key={id} className="flex items-center gap-2 text-gray-300 animate-in zoom-in fade-in hover:text-white cursor-pointer">
-                  <input type="checkbox" name="tarefas" value={`task_${id}`} className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
-                  Extra #{idx + 1}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="md:col-span-2 flex justify-end pt-4 border-t border-gray-800 gap-4">
-          <button type="submit" className="py-2 px-8 rounded bg-green-600 hover:bg-green-700 text-white font-medium shadow-lg active:scale-95 transition-transform hover:shadow-green-900/20">
-            {mode === 'novo' ? 'Salvar Registro' : 'Atualizar Dados'}
+      {/* BLOCO 3: Dinâmico (Mantido igual) */}
+      <div className="space-y-4 md:col-span-2">
+        <h3 className="text-xs font-bold text-gray-500 uppercase border-b border-gray-700 pb-1 flex justify-between items-center">
+          3. Lista Dinâmica (Observer)
+          <button type="button" onClick={() => setTarefasExtras(p => [...p, Date.now()])} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-0.5 rounded text-xs lowercase border border-gray-600 transition-colors">
+            + add item
           </button>
+        </h3>
+        <div className="bg-gray-900/50 p-4 rounded border border-gray-700">
+          <label className="flex items-center gap-2 text-purple-400 font-bold mb-2 cursor-pointer w-fit hover:opacity-80">
+            <input type="checkbox" data-checkbox-master="tarefas" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
+            Marcar Concluídas
+          </label>
+          <div className="pl-4 border-l-2 border-gray-700 ml-1.5 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <label className="flex items-center gap-2 text-gray-300 hover:text-white cursor-pointer">
+              <input type="checkbox" name="tarefas" value="setup" className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
+              Setup Inicial
+            </label>
+            {tarefasExtras.map((id, idx) => (
+              <label key={id} className="flex items-center gap-2 text-gray-300 animate-in zoom-in fade-in hover:text-white cursor-pointer">
+                <input type="checkbox" name="tarefas" value={`task_${id}`} className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-offset-gray-900" />
+                Extra #{idx + 1}
+              </label>
+            ))}
+          </div>
         </div>
-      </form>
-    </div>
-  );
+      </div>
+
+      <div className="md:col-span-2 flex justify-end pt-4 border-t border-gray-800 gap-4">
+        <button type="submit" className="py-2 px-8 rounded bg-green-600 hover:bg-green-700 text-white font-medium shadow-lg active:scale-95 transition-transform hover:shadow-green-900/20">
+          {mode === 'novo' ? 'Salvar Registro' : 'Atualizar Dados'}
+        </button>
+      </div>
+    </form>
+  </div>);
 };
 
 export default CheckboxGroupForm;

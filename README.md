@@ -1,50 +1,55 @@
------
+````markdown
+# 🚀 React Hybrid Form `v0.5.1`
 
-# 🚀 React Hybrid Form `v0.5.0`
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![React](https://img.shields.io/badge/react-18%2B-cyan)
+![TypeScript](https://img.shields.io/badge/typescript-5%2B-blue)
+![Performance](https://img.shields.io/badge/performance-uncontrolled-green)
 
 Uma arquitetura de formulários para React focada em **alta performance**, **acessibilidade (a11y)** e uso robusto da **API de Validação Nativa do DOM**.
 
 > **💡 Filosofia:** O estado do formulário vive no DOM, não no React. O React entra apenas para orquestrar validações complexas, componentes ricos e a submissão. Zero re-renders ao digitar.
 
------
+---
 
 ## ✨ Destaques da Versão
 
-  - **🏎️ Performance Extrema:** Componentes não controlados (*Uncontrolled*) por padrão. Digitar em um input não causa re-renderização do formulário.
-  - **🧠 Smart Validation:** Estratégia "Reward Early, Punish Late" com *Debounce* inteligente. Feedback imediato ao corrigir, feedback suave ao errar.
-  - **🔄 Autocomplete Enterprise:** Suporte completo a **Busca Assíncrona**, **Paginação (Infinite Scroll)**, **Portals** e tratamento de erros.
-  - **⭐ StarRating 2.0:** Totalmente acessível via teclado, customizável e reativo a resets externos.
-  - **🛡️ Validação Híbrida:** Integração perfeita entre validação customizada JS e balões de erro nativos (`reportValidity`).
-  - **✅ Checkbox Intelligence:** Gestão automática de grupos e estado "Indeterminado" via atributos HTML (`data-checkbox-master`), sem hooks manuais.
-  - **🔌 Native Bypass:** Arquitetura interna robusta que permite alterar valores do DOM via código e "acordar" o React automaticamente.
+- **🏎️ Performance Extrema:** Componentes não controlados (*Uncontrolled*) por padrão. Digitar em um input não causa re-renderização do formulário.
+- **🎁 DX Aprimorada:** Objeto `formProps` para conexão rápida (`<form {...formProps}>`).
+- **🖥️ Sistema de Modais:** Arquitetura de **Portals** com Hook Headless (`useModal`) para diálogos que furam o `overflow` e `z-index`.
+- **🔄 Autocomplete Enterprise:** Busca Assíncrona, Paginação, Portals e tratamento de erros.
+- **🛡️ Validação Híbrida:** Integração perfeita entre validação customizada JS e balões de erro nativos (`reportValidity`).
+- **✅ Checkbox Intelligence:** Gestão automática de grupos e estado "Indeterminado" via atributos HTML (`data-checkbox-master`).
+- **🔌 Native Bypass:** Arquitetura interna robusta que permite alterar valores do DOM via código e "acordar" o React automaticamente.
 
------
+---
 
 ## 📦 Estrutura do Projeto
 
 ```text
 src/
 ├── hooks/
-│   └── useForm.ts        # O Core. Gerencia validação, submit, leitura do DOM, Debounce e Observer.
+│   └── useForm.ts        # O Core. Gerencia validação, submit, leitura do DOM e Observer.
+│   └── useList.ts        # Gerenciador estrutural para listas dinâmicas.
 ├── components/
-│   ├── Autocomplete.tsx  # Input Async com Portal, filtro e Select Oculto.
+│   ├── modal/            # Sistema de Modais.
+│   │   ├── useModal.ts   # Hook Headless.
+│   │   └── Modal.tsx     # Componente Visual (Portal).
+│   ├── Autocomplete.tsx  # Input Async com Portal e Shadow Select.
 │   ├── StarRating.tsx    # Avaliação acessível com Input Âncora.
+│   ├── Switch.tsx        # Toggle booleano.
 │   └── TabButton.tsx     # Componente UI Stateless.
 ├── utils/
 │   ├── props.ts          # Definições de Tipos (Path, PathValue).
-│   └── utilities.ts      # Helpers de DOM, Parser, React Bypass e Lógica de Checkbox.
-└── scenarios/
-    ├── AsyncAutocompleteExample.tsx # Demo de API, Paginação e Edição.
-    ├── CheckboxGroupForm.tsx        # Demo de Grupos e Ciclo de Vida.
-    ├── ValidationFeedbackExample.tsx # Demo de UX de Validação.
-    └── ...
-```
+│   └── utilities.ts      # Helpers de DOM, Parser e Lógica de Checkbox.
+└── scenarios/            # Exemplos de implementação.
+````
 
 -----
 
 ## 🛠️ Hook Core: `useForm`
 
-Conecte o formulário HTML à lógica React com tipagem forte.
+Conecte o formulário HTML à lógica React com apenas uma linha de props.
 
 ```tsx
 import useForm from './hooks/useForm';
@@ -54,15 +59,19 @@ interface FormData {
 }
 
 const MyForm = () => {
-  const { handleSubmit, getValue, setValidators, resetSection } = useForm<FormData>("my-form-id");
-
-  const onSubmit = (data) => {
-    // data é inferido como FormData automaticamente
+  const onSubmit = (data: FormData) => {
     console.log("JSON Submetido:", data);
   };
 
+  // Configura ID e Submit Handler diretamente no hook
+  const { formProps, getValue, setValidators } = useForm<FormData>({
+      id: "my-form-id",
+      onSubmit: onSubmit
+  });
+
   return (
-    <form id="my-form-id" onSubmit={handleSubmit(onSubmit)}>
+    // Conecta ID, Ref e onSubmit automaticamente
+    <form {...formProps}>
       <input name="user.name" required />
       <button type="submit">Enviar</button>
     </form>
@@ -72,70 +81,125 @@ const MyForm = () => {
 
 -----
 
-## 🧠 Lógica de Dados (`getValue`)
+## 🖥️ Sistema de Modais (Portal)
 
-O sistema lê o DOM e converte para JSON estruturado automaticamente, inferindo tipos.
+Um gerenciador de diálogos robusto que utiliza **React Portals** para renderizar o modal no `body`, evitando problemas de corte (`overflow: hidden`) em containers pais.
 
-| Cenário HTML | Comportamento Interno | Resultado JSON |
-| :--- | :--- | :--- |
-| **Campos Simples** | `name="email"` | `{ "email": "..." }` |
-| **Aninhado** | `name="user.city"` | `{ "user": { "city": "..." } }` |
-| **Checkbox (Único)** | `name="terms"` (1 elemento no DOM) | `{ "terms": true }` (ou valor se definido) |
-| **Checkbox (Grupo)** | `name="roles"` (2+ elementos no DOM) | `{ "roles": ["admin", "editor"] }` |
+**Como usar:**
 
------
+1.  Instancie o hook `useModal`.
+2.  Chame `showModal` passando as configurações (Título, Conteúdo, Ações).
+3.  Renderize o componente `<Modal>` passando as props do hook.
 
-## 🌳 Checkbox Groups Inteligentes
-
-Crie grupos hierárquicos (Selecionar Todos) usando apenas atributos HTML.
+<!-- end list -->
 
 ```tsx
-{/* O Mestre: Controla inputs com name="permissoes" */}
-<label>
-  <input type="checkbox" data-checkbox-master="permissoes" /> 
-  Selecionar Todos
-</label>
+import { useModal } from './components/modal/useModal';
+import Modal from './components/modal/Modal';
 
-{/* Os Filhos */}
-<input type="checkbox" name="permissoes" value="ler" />
-<input type="checkbox" name="permissoes" value="escrever" />
-<input type="checkbox" name="permissoes" value="excluir" disabled /> {/* Ignorado pelo Mestre */}
-```
+const MyPage = () => {
+  const { showModal, modalProps } = useModal();
 
-**Resultado JSON:** `{ "permissoes": ["ler", "escrever"] }`
+  const handleOpen = () => {
+    showModal({
+      title: "Confirmação",
+      size: "sm",
+      content: <p>Deseja excluir este item?</p>,
+      // Injeção de Componentes Tipados ou JSX
+      actions: <button onClick={modalProps.onClose}>Fechar</button>
+    });
+  };
 
------
-
-## 🔄 Ciclo de Vida: Load & Reset
-
-Para carregar dados de uma API (Edição) ou cancelar alterações, use o `resetSection`.
-
-> **Nota:** Graças ao mecanismo de **Native Bypass** (`setNativeValue`), o `resetSection` atualiza o DOM e dispara eventos que atualizam automaticamente qualquer estado React vinculado (Ilhas de Reatividade).
-
-```tsx
-const handleLoadData = () => {
-    // Preenche o formulário e notifica componentes visuais
-    resetSection("", DADOS_API); 
-    
-    // Dica: Se houver lógica condicional complexa, sincronize o estado explícito aqui também
-    // setIsVisible(DADOS_API.hasExtraField);
+  return (
+    <>
+      <button onClick={handleOpen}>Abrir Modal</button>
+      {/* O Portal vive aqui */}
+      <Modal {...modalProps} />
+    </>
+  );
 };
 ```
 
 -----
 
-## 🎨 Padrões para Componentes Customizados
+## 🧠 Leitura de Dados (`getValue`)
+
+O sistema lê o DOM e converte para JSON estruturado automaticamente, com inferência de tipos.
+
+```tsx
+const name = getValue('user.name'); // Retorna string
+const age = getValue('user.age');   // Retorna number
+const all = getValue();             // Retorna o objeto FormData completo
+```
+
+-----
+
+## 📋 Listas Dinâmicas (`useList`)
+
+Para listas (arrays de objetos), separamos a responsabilidade:
+
+1.  **React (`useList`):** Gerencia a **Estrutura** (IDs e quantidade).
+2.  **DOM (`defaultValue`):** Gerencia os **Valores**.
+
+<!-- end list -->
+
+```tsx
+// Inicializa com dados existentes ou vazio
+const { items, add, remove } = useList(initialData);
+
+return (
+  <div>
+    {items.map((item, index) => (
+      <div key={item.id}>
+         <input 
+            name={`users[${index}].name`} 
+            defaultValue={item.data.name} // Injeção Direta
+         />
+         <button onClick={() => remove(index)}>X</button>
+      </div>
+    ))}
+    <button onClick={() => add()}>Novo</button>
+  </div>
+);
+```
+
+-----
+
+## 🛡️ Validação em Duas Etapas
+
+A biblioteca prioriza regras nativas e usa JS apenas para lógica de negócio.
+
+1.  **Nativo:** Verifica `required`, `min`, `pattern`. Se falhar, para e exibe mensagem do browser.
+2.  **Customizado:** Se o nativo passar, executa validadores JS.
+
+<!-- end list -->
+
+```tsx
+setValidators({
+  // Validação Simples
+  email: (val) => !val.includes('@empresa.com') ? { message: "Use email corporativo" } : undefined,
+  
+  // Validação Cruzada (Cross-Field)
+  confirmSenha: (val, field, formValues) => {
+      if (val !== formValues.senha) return { message: "Senhas não conferem" };
+  }
+});
+```
+
+-----
+
+## 🎨 Padrões de Componentes
 
 ### Pattern 1: Shadow Select (`Autocomplete`)
 
-1.  Mantenha um `<select>` oculto (`clip: rect(0,0,0,0)`) sincronizado.
-2.  Use `defaultValue` no select para manter o componente **Uncontrolled**.
-3.  Use **Portals** para renderizar a lista fora de containers com `overflow: hidden`.
+  * Mantém um `<select>` oculto (`clip: rect`) sincronizado.
+  * Usa **Portals** para renderizar a lista fora de containers com `overflow: hidden`.
+  * Suporta **Async Search** e **Infinite Scroll**.
 
-### Pattern 2: Anchor Input (`StarRating`)
+### Pattern 2: Anchor Input (`StarRating` / `Switch`)
 
-1.  Renderize um `<input>` com dimensões físicas (`w-full h-full`), mas transparente e atrás do visual (`z-0`).
-2.  Mantenha `pointer-events-auto` para que o navegador reconheça o campo como validável e exiba o balão de erro nativo corretamente.
+  * Renderiza um `<input>` físico (`pointer-events-auto`) posicionado estrategicamente (rodapé ou overlay).
+  * Isso garante que o navegador reconheça o campo como validável e exiba o balão de erro nativo na posição correta.
 
 -----
 
@@ -151,3 +215,6 @@ Funções puras exportadas para uso geral:
 ### Licença
 
 MIT
+
+```
+```

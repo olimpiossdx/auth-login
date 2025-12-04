@@ -36,7 +36,19 @@ const CARGOS = [
 ];
 
 const RegistrationComplexExample = () => {
-  const { handleSubmit, setValidators, formId } = useForm("complex-reg-form");
+
+  const onSubmit = (data: any) => {
+    showModal({
+      title: "Cadastro Realizado!",
+      content: () => (
+        <pre className="text-xs bg-black p-4 rounded text-green-400">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      ),
+    });
+  };
+
+  const { formProps, setValidators } = useForm({ id: "complex-reg-form", onSubmit: onSubmit });
 
   // Regras de Validação
   React.useEffect(() => {
@@ -63,17 +75,6 @@ const RegistrationComplexExample = () => {
     });
   }, [setValidators]);
 
-  const onSubmit = (data: any) => {
-    showModal({
-      title: "Cadastro Realizado!",
-      content: () => (
-        <pre className="text-xs bg-black p-4 rounded text-green-400">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      ),
-    });
-  };
-
   return (
     <div className="bg-gray-800 p-8 rounded-lg shadow-2xl border border-gray-700 max-w-2xl mx-auto">
       <style>{STYLES}</style>
@@ -82,12 +83,7 @@ const RegistrationComplexExample = () => {
         Cadastro Completo (Componentes Mistos)
       </h2>
 
-      <form
-        id={formId}
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-        className="space-y-6"
-      >
+      <form {...formProps} noValidate className="space-y-6">
         {/* 1. INPUT TEXTO */}
         <div>
           <label className="block text-sm text-gray-400 mb-1">

@@ -14,7 +14,25 @@ interface IMyHybridForm {
 };
 
 const HybridFormSimple = ({ }) => {
-  const { handleSubmit, setValidators, formId, getValue, resetSection } = useForm<IMyHybridForm>('hybrid-form-simple');
+
+  const onSubmit = (data: IMyHybridForm) => {
+    showModal({
+      title: 'Form Híbrido Salvo!',
+      content: () => (
+        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      ),
+      closeOnBackdropClick: false, // Obriga interação
+      onClose: () => console.log('Fechou!'), // Callback
+    });
+    console.log('data', data);
+    setEditingId(null);
+    originalEditDataRef.current = null;
+  };
+
+  const { formProps, setValidators, getValue, resetSection } = useForm<IMyHybridForm>({ id: 'hybrid-form-simple', onSubmit: onSubmit });
+
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const isEditingAny = editingId !== null;
   const originalEditDataRef = React.useRef<any>(null);
@@ -39,22 +57,6 @@ const HybridFormSimple = ({ }) => {
   }, []);
 
   React.useEffect(() => setValidators({ validarComentario, validarCor }), [setValidators, validarComentario, validarCor]);
-
-  const onSubmit = (data: IMyHybridForm) => {
-    showModal({
-      title: 'Form Híbrido Salvo!',
-      content: () => (
-        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      ),
-      closeOnBackdropClick: false, // Obriga interação
-      onClose: () => console.log('Fechou!'), // Callback
-    });
-    console.log('data', data);
-    setEditingId(null);
-    originalEditDataRef.current = null;
-  };
 
   const cores: IOption[] = [
     { value: 'vermelho', label: 'Vermelho' },
@@ -81,7 +83,7 @@ const HybridFormSimple = ({ }) => {
 
   return (
     <div className='bg-gray-800 p-6 rounded-lg shadow-xl'>
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form {...formProps} noValidate>
         <fieldset disabled={isEditingOther}>
           <legend className='text-xl font-bold mb-4 text-cyan-400 flex justify-between items-center w-full'>
             3. Híbrido (Rating + Autocomplete)

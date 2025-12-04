@@ -110,7 +110,15 @@ const ProductList = ({ categoryIndex, initialProducts = EMPTY_PRODUCTS }: { cate
 
 // --- COMPONENTE PAI ---
 const NestedListForm = () => {
-  const { handleSubmit, formId, resetSection, setValidators } = useForm<IInventoryForm>("nested-list-form");
+
+  const onSubmit = (data: IInventoryForm) => {
+    showModal({
+      title: "Inventário Salvo",
+      content: () => <pre className="text-xs bg-black p-4 text-green-400 overflow-auto">{JSON.stringify(data, null, 2)}</pre>
+    });
+  };
+
+  const { formProps, resetSection, setValidators } = useForm<IInventoryForm>({ id: "nested-list-form", onSubmit: onSubmit });
 
   // Estados Data-Driven
   const [formData, setFormData] = React.useState<IInventoryForm>(EMPTY_INVENTORY);
@@ -148,13 +156,6 @@ const NestedListForm = () => {
     setTimeout(() => resetSection("", null), 50);
   };
 
-  const onSubmit = (data: IInventoryForm) => {
-    showModal({
-      title: "Inventário Salvo",
-      content: () => <pre className="text-xs bg-black p-4 text-green-400 overflow-auto">{JSON.stringify(data, null, 2)}</pre>
-    });
-  };
-
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 max-w-4xl mx-auto">
 
@@ -175,7 +176,7 @@ const NestedListForm = () => {
       </div>
 
       {/* KEY para forçar remontagem limpa ao trocar dados base */}
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} key={mode === 'editando' ? 'loaded' : 'empty'}>
+      <form {...formProps} key={mode === 'editando' ? 'loaded' : 'empty'}>
 
         <div className="mb-6">
           <label className="block text-sm text-gray-400 mb-1">Nome da Loja</label>

@@ -20,7 +20,18 @@ const DADOS_EDICAO = {
 };
 
 const AsyncAutocompleteExample = () => {
-  const { handleSubmit, formId, resetSection, setValidators } = useForm<any>("team-form");
+  const onSubmit = (data: any) => {
+    showModal({
+      title: "Equipe Cadastrada",
+      content: () => (
+        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      ),
+    });
+  };
+
+  const { formProps, resetSection, setValidators } = useForm<any>({ id: "team-form", onSubmit: onSubmit });
 
   const [liderOptions, setLiderOptions] = React.useState<IOption[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -112,7 +123,7 @@ const AsyncAutocompleteExample = () => {
         const existingIds = new Set(prev.map((o) => o.value));
         return [
           ...prev,
-          ...newOptions.filter((o:any) => !existingIds.has(o.value)),
+          ...newOptions.filter((o: any) => !existingIds.has(o.value)),
         ];
       });
 
@@ -165,18 +176,6 @@ const AsyncAutocompleteExample = () => {
       50
     );
   };
-
-  const onSubmit = (data: any) => {
-    showModal({
-      title: "Equipe Cadastrada",
-      content: () => (
-        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      ),
-    });
-  };
-
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 max-w-4xl mx-auto relative">
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start gap-4">
@@ -218,7 +217,7 @@ const AsyncAutocompleteExample = () => {
         </div>
       </div>
 
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form {...formProps} className="space-y-6">
         <div>
           <label className="block text-sm text-gray-400 mb-1">
             Nome da Equipe *

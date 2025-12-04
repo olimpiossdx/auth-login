@@ -10,8 +10,6 @@ interface IFormValues {
 };
 
 const TabStarRatingExample = () => {
-  const { handleSubmit, formId } = useForm<IFormValues>("star-rating-example");
-  const [npsMessage, setNpsMessage] = React.useState("");
 
   const onSubmit = (data: IFormValues) => {
     showModal({
@@ -23,6 +21,9 @@ const TabStarRatingExample = () => {
       ),
     });
   };
+  const { formProps } = useForm<IFormValues>({ id: "star-rating-example", onSubmit: onSubmit });
+
+  const [npsMessage, setNpsMessage] = React.useState("");
 
   // Callback de Reatividade (onChange)
   const handleNpsChange = (val: number) => {
@@ -41,7 +42,7 @@ const TabStarRatingExample = () => {
         Star Rating (v2.0)
       </h2>
 
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form {...formProps} noValidate>
         {/* 1. PADRÃO */}
         <div className="mb-6 p-4 bg-gray-900 rounded-md border border-gray-700">
           <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase">

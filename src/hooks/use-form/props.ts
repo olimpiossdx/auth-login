@@ -1,5 +1,10 @@
 // --- DEFINIÇÕES DE TIPO GERAIS ---
 
+export interface UseFormConfig<FV> {
+  id?: string;
+  onSubmit?: (data: FV) => void;
+};
+
 export interface IAnyObject {
   [key: string]: any;
 }

@@ -1,9 +1,14 @@
 import AddressList from "./adress-list";
-import type { Contato } from "./tab-nested-list-form";
+
+interface IContato {
+  numero: string;
+  tipo: number;
+  enderecos: any[];
+}
 
 interface ContactItemProps {
   contactIndex: number;
-  initialData: Contato;
+  initialData: IContato;
   onRemoveContact: () => void;
   isEditing: boolean;
   isDisabled: boolean;

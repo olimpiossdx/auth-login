@@ -40,7 +40,7 @@ const EMPTY_DATA: ICurriculumFormValues = {
 };
 
 const CurriculumForm = () => {
-  const { handleSubmit, formId, resetSection } = useForm<ICurriculumFormValues>("curriculum-form");
+  const { handleSubmit, formId, resetSection, registerForm } = useForm<ICurriculumFormValues>("curriculum-form");
 
   // CORREÇÃO: Inicializa com EMPTY_DATA em vez de null.
   // Isso garante que as listas recebam arrays estáveis desde a primeira renderização,
@@ -89,7 +89,7 @@ const CurriculumForm = () => {
 
       {/* Usamos uma key baseada no objeto para forçar remontagem limpa apenas se necessário,
           mas com a correção do estado estável, isso é menos crítico. */}
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} className="space-y-8" key={formData === DATA_MOCK ? 'loaded' : 'empty'}>
+      <form id={formId} ref={registerForm} onSubmit={handleSubmit(onSubmit)} className="space-y-8" key={formData === DATA_MOCK ? 'loaded' : 'empty'}>
 
         <DadosPessoais data={formData} />
 

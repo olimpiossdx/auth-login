@@ -8,8 +8,6 @@ interface ILoginFormValues {
 };
 
 const LoginForm: React.FC = ({ }) => {
-  const { handleSubmit, formId } = useForm<ILoginFormValues>("login-form");
-
   const onSubmit = (data: ILoginFormValues) => {
     // showModal("Login bem-sucedido!", "Dados: " + JSON.stringify(data));
     showModal({
@@ -23,12 +21,13 @@ const LoginForm: React.FC = ({ }) => {
       onClose: () => console.log("Fechou!"), // Callback
     });
   };
+  const { formProps } = useForm<ILoginFormValues>({ id: "login-form", onSubmit: onSubmit });
 
   return (<div className="bg-gray-800 p-6 rounded-lg shadow-xl">
     <h3 className="text-xl font-bold mb-4 text-cyan-400">
       1. Campos Nativos
     </h3>
-    <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form {...formProps} noValidate>
       <div className="mb-4">
         <label className="block mb-1 text-gray-300" htmlFor="email">
           Email
@@ -62,7 +61,7 @@ const LoginForm: React.FC = ({ }) => {
         Entrar
       </button>
     </form>
-  </div>);
+  </div >);
 };
 
 export default LoginForm;

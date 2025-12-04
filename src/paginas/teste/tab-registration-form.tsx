@@ -10,18 +10,6 @@ interface IRegFormValues {
 };
 
 const RegistrationForm = () => {
-  const { handleSubmit, setValidators, formId } = useForm<IRegFormValues>("reg-form");
-
-  const validarSenha = React.useCallback((value: any, _: FormField | null, formValues: IRegFormValues): ValidationResult =>
-    value !== formValues.senha
-      ? { message: "As senhas não correspondem", type: "error" }
-      : undefined,
-    []);
-
-  React.useEffect(
-    () => setValidators({ validarSenha }),
-    [setValidators, validarSenha]
-  );
   const onSubmit = (data: IRegFormValues) => {
     showModal({
       title: "Cadastro realizado!",
@@ -31,10 +19,21 @@ const RegistrationForm = () => {
         </pre>
       ),
       closeOnBackdropClick: false, // Obriga interação
-      contentProps: { className: "whitespace-pre-wrap" },
+      props: {
+        content: { className: "whitespace-pre-wrap" }
+      },
       onClose: () => console.log("Fechou!"), // Callback
     });
   };
+  const { handleSubmit, setValidators, formId } = useForm<IRegFormValues>({ id: "reg-form", onSubmit: onSubmit });
+
+  const validarSenha = React.useCallback((value: any, _: FormField | null, formValues: IRegFormValues): ValidationResult =>
+    value !== formValues.senha
+      ? { message: "As senhas não correspondem", type: "error" }
+      : undefined,
+    []);
+
+  React.useEffect(() => setValidators({ validarSenha }), [setValidators, validarSenha]);
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-xl">

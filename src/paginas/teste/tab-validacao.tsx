@@ -37,7 +37,19 @@ const STYLES = `
 `;
 
 const ValidationFeedbackExample = () => {
-  const { handleSubmit, setValidators, formId } = useForm("smart-validation-form");
+
+  const onSubmit = (data: any) => {
+    showModal({
+      title: "Sucesso!",
+      content: () => (<>
+        <div className="text-green-400">Login validado com sucesso.</div>
+        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto">
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      </>),
+    });
+  };
+  const { formProps, setValidators } = useForm({ onSubmit });
 
   React.useEffect(() => {
     setValidators({
@@ -58,18 +70,6 @@ const ValidationFeedbackExample = () => {
     });
   }, [setValidators]);
 
-  const onSubmit = (data: any) => {
-    showModal({
-      title: "Sucesso!",
-      content: () => (<>
-        <div className="text-green-400">Login validado com sucesso.</div>
-        <pre className="text-xs bg-black p-4 rounded text-green-400 overflow-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      </>),
-    });
-  };
-
   return (
     <div className="bg-gray-800 p-8 rounded-lg shadow-2xl border border-gray-700 max-w-md mx-auto">
       <style>{STYLES}</style>
@@ -81,7 +81,7 @@ const ValidationFeedbackExample = () => {
         </p>
       </div>
 
-      <form id={formId} onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form  {...formProps} noValidate>
         {/* CAMPO E-MAIL */}
         <div className="mb-6">
           <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
