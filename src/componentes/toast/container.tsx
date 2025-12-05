@@ -15,25 +15,25 @@ const ToastContainer = () => {
 
   const getPositionClasses = (pos: ToastPosition) => {
     const fixed = "fixed z-[9999] flex flex-col gap-3 p-4 pointer-events-none max-h-screen overflow-hidden";
-    switch(pos) {
-        case 'top-right': return `${fixed} top-0 right-0 items-end`;
-        case 'top-left': return `${fixed} top-0 left-0 items-start`;
-        case 'bottom-right': return `${fixed} bottom-0 right-0 items-end flex-col-reverse`;
-        case 'bottom-left': return `${fixed} bottom-0 left-0 items-start flex-col-reverse`;
-        case 'top-center': return `${fixed} top-0 left-1/2 -translate-x-1/2 items-center`;
-        case 'bottom-center': return `${fixed} bottom-0 left-1/2 -translate-x-1/2 items-center flex-col-reverse`;
+    switch (pos) {
+      case 'top-right': return `${fixed} top-0 right-0 items-end`;
+      case 'top-left': return `${fixed} top-0 left-0 items-start`;
+      case 'bottom-right': return `${fixed} bottom-0 right-0 items-end flex-col-reverse`;
+      case 'bottom-left': return `${fixed} bottom-0 left-0 items-start flex-col-reverse`;
+      case 'top-center': return `${fixed} top-0 left-1/2 -translate-x-1/2 items-center`;
+      case 'bottom-center': return `${fixed} bottom-0 left-1/2 -translate-x-1/2 items-center flex-col-reverse`;
     }
   };
 
   return (<>
-      {positions.map(pos => (
-        <div key={pos} className={getPositionClasses(pos)}>
-          {toasts.filter(t => (t.position || 'top-right') === pos).map(toast => (
-            <ToastItem key={toast.id} toast={toast} />
-          ))}
-        </div>
-      ))}
-    </>);
+    {positions.map(pos => (
+      <div key={pos} className={getPositionClasses(pos)}>
+        {toasts.filter(t => (t.position || 'top-right') === pos).map(toast => {
+          return (<ToastItem key={toast.id} toast={toast} />);
+        })}
+      </div>
+    ))}
+  </>);
 };
 
 const ToastItem = ({ toast }: { toast: IToast }) => {
@@ -69,36 +69,34 @@ const ToastItem = ({ toast }: { toast: IToast }) => {
 
   const isLarge = toast.size === 'large';
 
-  return (<div 
-      className={`
-        pointer-events-auto 
-        ${isLarge ? 'w-96 p-6' : 'w-80 p-4'}
-        border-l-4 rounded shadow-2xl flex items-start gap-4
-        transition-all duration-300 ease-in-out transform
-        ${colors[toast.type]}
-        ${isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100 animate-in fade-in slide-in-from-bottom-2'}
-      `}
-    >
-      <div className="shrink-0 mt-0.5">{icons[toast.type]}</div>
-      
-      <div className="flex-1 min-w-0">
-        {toast.title && <h4 className={`font-bold text-white mb-1 ${isLarge ? 'text-lg' : 'text-sm'}`}>{toast.title}</h4>}
-        <p className={`text-gray-300 leading-relaxed ${isLarge ? 'text-base' : 'text-sm'}`}>{toast.message}</p>
-        
-        {toast.action && (
-          <button 
-            onClick={(e) => { e.stopPropagation(); toast.action?.onClick(); }}
-            className="mt-3 text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition-colors"
-          >
-            {toast.action.label}
-          </button>
-        )}
-      </div>
+  const handleAction = (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+    event.stopPropagation();
+    toast.action?.onClick();
+  };
 
-      <button onClick={handleClose} className="text-gray-500 hover:text-white shrink-0 -mt-1 -mr-1 p-1">
-        <X size={16} />
-      </button>
-    </div>);
+  const containerStyle = `pointer-events-auto ${isLarge ? 'w-96 p-6' : 'w-80 p-4'} border-l-4 rounded shadow-2xl flex items-start gap-4
+        transition-all duration-300 ease-in-out transform ${colors[toast.type]}
+        ${isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100 animate-in fade-in slide-in-from-bottom-2'}`
+
+  return (<div className={containerStyle}>
+    <div className="shrink-0 mt-0.5">{icons[toast.type]}</div>
+    <div className="flex-1 min-w-0">
+      {toast.title
+        ? <h4 className={`font-bold text-white mb-1 ${isLarge ? 'text-lg' : 'text-sm'}`}>{toast.title}</h4>
+        : null
+      }
+      <p className={`text-gray-300 leading-relaxed ${isLarge ? 'text-base' : 'text-sm'}`}>{toast.message}</p>
+      {toast.action
+        ? (<button onClick={handleAction}
+          className="mt-3 text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded transition-colors">
+          {toast.action.label}
+        </button>)
+        : null}
+    </div>
+    <button onClick={handleClose} className="text-gray-500 hover:text-white shrink-0 -mt-1 -mr-1 p-1">
+      <X size={16} />
+    </button>
+  </div>);
 };
 
 export default ToastContainer;

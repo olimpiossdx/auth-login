@@ -7,7 +7,10 @@ import type { IToastOptions, ToastType } from './types';
 const CONTAINER_ID = 'hybrid-toast-portal';
 
 const ensureContainerExists = () => {
-  if (document.getElementById(CONTAINER_ID)) return;
+  if (document.getElementById(CONTAINER_ID)){
+     return;
+  };
+  
   const container = document.createElement('div');
   container.id = CONTAINER_ID;
   document.body.appendChild(container);
