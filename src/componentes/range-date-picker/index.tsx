@@ -28,7 +28,6 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
   const [end, setEnd] = useState<Date | null>(null);
   const [hoverDate, setHoverDate] = useState<Date | null>(null);
 
-  // Estados Visuais (Texto)
   const [startText, setStartText] = useState("");
   const [endText, setEndText] = useState("");
 
@@ -41,7 +40,6 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
 
   const effectiveDisabled = disabled || readOnly;
 
-  // --- SINCRONIA: Atualiza Texto quando Data muda ---
   useEffect(() => {
     if (document.activeElement !== visualStartRef.current) {
       setStartText(toDisplayDate(start));
@@ -51,7 +49,6 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
     }
   }, [start, end]);
 
-  // --- SINCRONIA COM DOM (Reset Externo) ---
   useEffect(() => {
     const handleExternalUpdate = () => {
       if (startInputRef.current) setStart(parseISODate(startInputRef.current.value));
@@ -77,7 +74,6 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
     };
   }, []);
 
-  // --- HELPERS ---
   const isDateAllowed = (date: Date) => {
     if (excludeWeekends && isWeekend(date)) return false;
     if (minDate) {
@@ -112,7 +108,6 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
     }
   };
 
-  // --- HANDLERS VISUAIS ---
   const handleVisualChange = (e: React.ChangeEvent<HTMLInputElement>, isStart: boolean) => {
     const val = e.target.value;
     const masked = maskDateInput(val);
@@ -121,7 +116,8 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
   };
 
   const handleVisualBlur = (isStart: boolean) => {
-    const text = isStart ? startText : endText;
+    const ref = isStart ? visualStartRef : visualEndRef;
+    const text = ref.current ? ref.current.value : (isStart ? startText : endText);
     const date = smartParseDate(text);
 
     if (date) {
@@ -131,16 +127,12 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
         else setEndText(toDisplayDate(prev));
         return;
       }
-
       if (isStart) {
         applyRange(date, end && isBefore(end, date) ? null : end);
         setViewDate(date);
       } else {
-        if (start && isBefore(date, start)) {
-          setEndText(toDisplayDate(end));
-        } else {
-          applyRange(start, date);
-        }
+        if (start && isBefore(date, start)) setEndText(toDisplayDate(end));
+        else applyRange(start, date);
       }
     } else {
       if (text.trim() === "") {
@@ -165,9 +157,11 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
         setIsOpen(false);
       }
     }
+    if (e.key === 'Tab' && !e.shiftKey && !isStart) {
+      setIsOpen(false);
+    }
   };
 
-  // --- HANDLERS CALENDÁRIO ---
   const handleDayClick = (date: Date) => {
     if (!isDateAllowed(date)) return;
     if (!start || (start && end)) {
@@ -197,13 +191,14 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
         </label>
       )}
 
-      {/* 1. INPUTS VISUAIS */}
+      {/* 1. GRUPO DE INPUTS VISUAIS */}
       <div
         className={`
-            flex items-center bg-gray-800 border border-gray-600 rounded-lg transition-colors focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-transparent
+            flex items-center bg-gray-800 border border-gray-600 rounded-lg transition-colors focus-within:ring-2 focus-within:ring-cyan-500 focus-within:border-transparent overflow-hidden
             ${effectiveDisabled ? 'opacity-50 pointer-events-none' : ''}
         `}
       >
+        {/* Input Início */}
         <input
           ref={visualStartRef}
           value={startText}
@@ -212,11 +207,19 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
           onKeyDown={(e) => handleVisualKeyDown(e, true)}
           onFocus={() => !effectiveDisabled && !readOnly && setIsOpen(true)}
           placeholder="Início"
-          className="bg-transparent text-sm text-white p-2.5 w-full outline-none text-center placeholder-gray-500"
+          // AJUSTE DE CSS: 
+          // flex-1: Cresce para ocupar espaço
+          // min-w-[5.5rem]: Largura mínima para DD/MM/AAAA (aprox 88px)
+          // text-center: Mantém a data alinhada
+          className="flex-1 min-w-[5.5rem] bg-transparent text-sm text-white p-2.5 outline-none text-center placeholder-gray-500"
           readOnly={readOnly}
           disabled={disabled}
         />
-        <span className="text-gray-500"><ArrowRight size={14} /></span>
+
+        {/* Separador (Seta) - shrink-0 impede que seja esmagado */}
+        <span className="text-gray-500 shrink-0 px-1"><ArrowRight size={14} /></span>
+
+        {/* Input Fim */}
         <input
           ref={visualEndRef}
           value={endText}
@@ -225,30 +228,32 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
           onKeyDown={(e) => handleVisualKeyDown(e, false)}
           onFocus={() => !effectiveDisabled && !readOnly && setIsOpen(true)}
           placeholder="Fim"
-          className="bg-transparent text-sm text-white p-2.5 w-full outline-none text-center placeholder-gray-500"
+          className="flex-1 min-w-[5.5rem] bg-transparent text-sm text-white p-2.5 outline-none text-center placeholder-gray-500"
           readOnly={readOnly}
           disabled={disabled}
         />
+
+        {/* Ícone Trigger - shrink-0 impede esmagamento */}
         <button
           type="button"
           onClick={() => !effectiveDisabled && setIsOpen(!isOpen)}
-          className="p-2.5 text-gray-400 hover:text-white focus:outline-none"
+          className="p-2.5 text-gray-400 hover:text-white focus:outline-none shrink-0"
           tabIndex={-1}
         >
           <Calendar size={18} />
         </button>
       </div>
 
-      {/* 2. POPOVER (CALENDÁRIO) */}
+      {/* 2. POPOVER */}
       <Popover
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         triggerRef={containerRef}
         fullWidth={matchInputWidth}
-        className="overflow-hidden bg-gray-800 shadow-2xl border border-gray-700"
+        className="flex overflow-hidden bg-gray-800 shadow-2xl border border-gray-700"
       >
-        {/* WRAPPER PRINCIPAL: Detecta saída do mouse para fechar */}
-        <div className="flex" onMouseLeave={() => setIsOpen(false)}>
+        {/* Conteúdo do Popover (Mantido Igual) */}
+        <div className="flex">
           {showPresets && (
             <div className="w-36 border-r border-gray-700 p-2 bg-gray-900/50 hidden sm:block shrink-0">
               {presets.map((p, i) => (
@@ -288,7 +293,6 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
         </div>
       </Popover>
 
-      {/* 3. INPUTS OCULTOS */}
       <input ref={startInputRef} type="date" name={startDateName} required={required} min={minDate} max={maxDate} className="sr-only" tabIndex={-1} />
       <input ref={endInputRef} type="date" name={endDateName} required={required} min={toISODate(start) || minDate} max={maxDate} className="sr-only" tabIndex={-1} />
     </div>
