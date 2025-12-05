@@ -14,6 +14,7 @@ import ValidationFeedbackExample from "./tab-validacao";
 import RegistrationComplexExample from "./tab-registration";
 import BudgetProjectForm from "./tab-budget-project-form";
 import ToastContainerExample from "./tab-toast-container";
+import TabAlertExample from "./tab-alert";
 
 // Foca no nova tab/formulário-ativo
 const Homologacao: React.FC = () => {
@@ -35,6 +36,7 @@ const Homologacao: React.FC = () => {
     registrationComplexExample: <RegistrationComplexExample />,
     budgetProjectForm: <BudgetProjectForm />,
     toastContainerExample: <ToastContainerExample />,
+    tabAlertExample: <TabAlertExample />,
   };
 
   return (<div className="bg-gray-800 text-white min-h-screen p-2 sm:p-4 font-sans">
@@ -130,6 +132,12 @@ const Homologacao: React.FC = () => {
           tabId="toastContainerExample"
           label="Toast"
           isActive={activeTab === "toastContainerExample"}
+          onClick={setActiveTab}
+        />
+        <TabButton
+          tabId="tabAlertExample"
+          label="Alert"
+          isActive={activeTab === "tabAlertExample"}
           onClick={setActiveTab}
         />
       </div>
