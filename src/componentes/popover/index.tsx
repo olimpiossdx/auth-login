@@ -1,46 +1,73 @@
-import React, { useLayoutEffect, useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
+import type { IPopoverProps } from './props';
 
-interface PopoverProps {
-  isOpen: boolean;
-  onClose: () => void;
-  triggerRef: React.RefObject<any>;
-  children: React.ReactNode;
-  className?: string;
-  fullWidth?: boolean;
-}
-
-const Popover: React.FC<PopoverProps> = ({
-  isOpen,
-  onClose,
-  triggerRef,
-  children,
-  className = "",
-  fullWidth = false
-}) => {
-  const [coords, setCoords] = useState<{ top: number; left: number; minWidth: number } | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
+const Popover: React.FC<IPopoverProps> = ({ isOpen, onClose, triggerRef, children, className = "", fullWidth = false }) => {
+  // Estado inicial null indica que ainda não calculamos a posição
+  const [coords, setCoords] = React.useState<{ top: number; left: number; minWidth: number } | null>(null);
+  const [isVisible, setIsVisible] = React.useState(false); // Controla a opacidade final
+  const popoverRef = React.useRef<HTMLDivElement>(null);
 
   const updatePosition = () => {
-    if (triggerRef.current && isOpen) {
-      const rect = triggerRef.current.getBoundingClientRect();
+    if (triggerRef.current && popoverRef.current && isOpen) {
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const popoverRect = popoverRef.current.getBoundingClientRect();
+
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       const scrollX = window.scrollX || window.pageXOffset;
       const scrollY = window.scrollY || window.pageYOffset;
 
+      // Configurações Padrão (Baixo - Esquerda)
+      let top = triggerRect.bottom + scrollY + 4; // 4px margem
+      let left = triggerRect.left + scrollX;
+
+      // 1. COLISÃO VERTICAL (Cima ou Baixo?)
+      const spaceBelow = viewportHeight - triggerRect.bottom;
+      const spaceAbove = triggerRect.top;
+      const popoverHeight = popoverRect.height;
+
+      // Se não cabe embaixo E cabe em cima -> Joga pra Cima
+      if (spaceBelow < popoverHeight && spaceAbove > popoverHeight) {
+        top = triggerRect.top + scrollY - popoverHeight - 4;
+      }
+
+      // 2. COLISÃO HORIZONTAL (Esquerda ou Direita?)
+      const popoverWidth = popoverRect.width;
+
+      // Se estourar a direita da tela -> Alinha pela direita do trigger
+      if (left + popoverWidth > viewportWidth) {
+        // Tenta alinhar a borda direita do popover com a borda direita do trigger
+        left = (triggerRect.right + scrollX) - popoverWidth;
+
+        // Guarda de segurança: Se mesmo assim estourar a esquerda (tela muito pequena),
+        // fixa uma margem mínima na esquerda
+        if (left < 4) left = 4;
+      }
+
       setCoords({
-        // Cálculo correto para Absolute: Viewport (rect) + Scroll da Página
-        top: rect.bottom + scrollY + 4,
-        left: rect.left + scrollX,
-        minWidth: fullWidth ? rect.width : 0
+        top,
+        left,
+        minWidth: fullWidth ? triggerRect.width : 0
       });
+
+      // Libera a visibilidade após o cálculo
+      setIsVisible(true);
     }
   };
 
-  useLayoutEffect(() => {
-    if (isOpen) updatePosition();
+  // useLayoutEffect roda ANTES da pintura do browser, evitando "pulos" visuais
+  React.useLayoutEffect(() => {
+    if (isOpen) {
+      updatePosition();
+    } else {
+      setIsVisible(false);
+      setCoords(null);
+    }
   }, [isOpen]);
 
-  useEffect(() => {
+  // Listeners passivos para resize/scroll
+  React.useEffect(() => {
     if (isOpen) {
       window.addEventListener('resize', updatePosition);
       window.addEventListener('scroll', updatePosition, { capture: true });
@@ -51,10 +78,13 @@ const Popover: React.FC<PopoverProps> = ({
     };
   }, [isOpen]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current?.contains(e.target as Node) || triggerRef.current?.contains(e.target as Node)) {
+      if (
+        popoverRef.current?.contains(e.target as Node) ||
+        triggerRef.current?.contains(e.target as Node)
+      ) {
         return;
       }
       onClose();
@@ -63,23 +93,24 @@ const Popover: React.FC<PopoverProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
-  if (!isOpen || !coords) return null;
+  if (!isOpen) return null;
 
   return createPortal(
-    <div
-      ref={popoverRef}
-      // CORREÇÃO: Usar 'absolute' em vez de 'fixed'.
-      // Como estamos somando o scrollY no 'top', 'absolute' garante que ele fique na posição correta
-      // relativa ao documento inteiro. 'fixed' somaria o scroll duas vezes visualmente.
+    <div ref={popoverRef}
+      // Usamos 'invisible' enquanto não temos coords para medir o tamanho real sem mostrar no lugar errado
       className={`
         absolute z-[9999] bg-gray-800 border border-gray-700 rounded-lg shadow-2xl 
-        animate-in fade-in zoom-in-95 duration-200
+        transition-opacity duration-200 ease-out
+        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}
         ${className}
       `}
       style={{
-        top: coords.top,
-        left: coords.left,
-        minWidth: coords.minWidth > 0 ? coords.minWidth : undefined
+        // Se coords for null (primeiro render), renderiza fora da tela ou no 0,0 apenas para medição
+        top: coords?.top ?? 0,
+        left: coords?.left ?? 0,
+        minWidth: coords?.minWidth && coords.minWidth > 0 ? coords.minWidth : undefined,
+        // Garante que a medição funcione mas o usuário não veja glitches
+        visibility: coords ? 'visible' : 'hidden'
       }}
     >
       {children}
