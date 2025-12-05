@@ -4,21 +4,20 @@ import { createPortal } from 'react-dom';
 interface PopoverProps {
   isOpen: boolean;
   onClose: () => void;
-  triggerRef: React.RefObject<any>; 
+  triggerRef: React.RefObject<any>;
   children: React.ReactNode;
   className?: string;
   fullWidth?: boolean;
 }
 
-const Popover: React.FC<PopoverProps> = ({ 
-  isOpen, 
-  onClose, 
-  triggerRef, 
-  children, 
+const Popover: React.FC<PopoverProps> = ({
+  isOpen,
+  onClose,
+  triggerRef,
+  children,
   className = "",
-  fullWidth = false 
+  fullWidth = false
 }) => {
-  // Começamos com coords, mas só renderizamos quando calculado
   const [coords, setCoords] = useState<{ top: number; left: number; minWidth: number } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -29,6 +28,7 @@ const Popover: React.FC<PopoverProps> = ({
       const scrollY = window.scrollY || window.pageYOffset;
 
       setCoords({
+        // Cálculo correto para Absolute: Viewport (rect) + Scroll da Página
         top: rect.bottom + scrollY + 4,
         left: rect.left + scrollX,
         minWidth: fullWidth ? rect.width : 0
@@ -36,16 +36,10 @@ const Popover: React.FC<PopoverProps> = ({
     }
   };
 
-  // --- CORREÇÃO CRÍTICA: useLayoutEffect ---
-  // Roda sincronamente APÓS as mutações do DOM mas ANTES do browser pintar a tela.
-  // Isso evita que o usuário veja o popover em (0,0) antes de ir para o lugar certo.
   useLayoutEffect(() => {
-    if (isOpen) {
-        updatePosition();
-    }
+    if (isOpen) updatePosition();
   }, [isOpen]);
 
-  // Listeners de resize/scroll continuam no useEffect normal (passivos)
   useEffect(() => {
     if (isOpen) {
       window.addEventListener('resize', updatePosition);
@@ -57,33 +51,28 @@ const Popover: React.FC<PopoverProps> = ({
     };
   }, [isOpen]);
 
-  // Clique fora
   useEffect(() => {
     if (!isOpen) return;
-
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        popoverRef.current?.contains(e.target as Node) || 
-        triggerRef.current?.contains(e.target as Node)
-      ) {
+      if (popoverRef.current?.contains(e.target as Node) || triggerRef.current?.contains(e.target as Node)) {
         return;
       }
       onClose();
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
-  // Se não está aberto OU se ainda não calculou a posição inicial, não renderiza nada.
-  // Isso garante que o primeiro frame já seja na posição correta.
   if (!isOpen || !coords) return null;
 
   return createPortal(
     <div
       ref={popoverRef}
+      // CORREÇÃO: Usar 'absolute' em vez de 'fixed'.
+      // Como estamos somando o scrollY no 'top', 'absolute' garante que ele fique na posição correta
+      // relativa ao documento inteiro. 'fixed' somaria o scroll duas vezes visualmente.
       className={`
-        fixed z-9999 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl 
+        absolute z-[9999] bg-gray-800 border border-gray-700 rounded-lg shadow-2xl 
         animate-in fade-in zoom-in-95 duration-200
         ${className}
       `}
