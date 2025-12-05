@@ -184,7 +184,7 @@ const DateRangePicker: React.FC<IDateRangeProps> = ({
   };
 
   return (
-    <div className={`relative mb-4 ${className}`} ref={containerRef}>
+    <div className={`relative  ${className}`} ref={containerRef}>
       {label && (
         <label className="block mb-1 text-gray-300">
           {label} {required && <span className="text-red-400">*</span>}

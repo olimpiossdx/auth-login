@@ -285,7 +285,7 @@ const Autocomplete: React.FC<AutocompleteProps> = (props) => {
   );
 
   return (
-    <div className={`relative mb-4 ${className}`} ref={containerRef} onBlur={handleBlur}>
+    <div className={`relative ${className}`} ref={containerRef} onBlur={handleBlur}>
       <label className="block mb-1 text-gray-300" htmlFor={`autocomplete-${name}`}>{label} {required && <span className="text-red-400">*</span>}</label>
       <div className="relative">
         <input ref={visibleInputRef} id={`autocomplete-${name}`} type="text" value={inputValue} onChange={handleInputChange}

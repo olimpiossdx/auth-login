@@ -18,6 +18,7 @@ import TabAlertExample from "./tab-alert";
 import TabSwitchExample from "./tab-switch";
 import DateRangeExample from "./tab-range-date";
 import TabServiceExample from "./tab-service";
+import TabEmployeeDashboard from "./employee-dashboard";
 
 // Foca no nova tab/formulário-ativo
 const Homologacao: React.FC = () => {
@@ -43,6 +44,7 @@ const Homologacao: React.FC = () => {
     tabSwitchExample: <TabSwitchExample />,
     dateRangeExample: <DateRangeExample />,
     tabServiceExample: <TabServiceExample />,
+    tabEmployeeDashboard: <TabEmployeeDashboard />,
   };
 
   return (<div className="bg-gray-800 text-white min-h-screen p-2 sm:p-4 font-sans">
@@ -162,6 +164,12 @@ const Homologacao: React.FC = () => {
           tabId="tabServiceExample"
           label="Api Service"
           isActive={activeTab === "tabServiceExample"}
+          onClick={setActiveTab}
+        />
+        <TabButton
+          tabId="tabEmployeeDashboard"
+          label="Gestão de pessoas"
+          isActive={activeTab === "tabEmployeeDashboard"}
           onClick={setActiveTab}
         />
       </div>
