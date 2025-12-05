@@ -17,6 +17,7 @@ import ToastContainerExample from "./tab-toast-container";
 import TabAlertExample from "./tab-alert";
 import TabSwitchExample from "./tab-switch";
 import DateRangeExample from "./tab-range-date";
+import TabServiceExample from "./tab-service";
 
 // Foca no nova tab/formulário-ativo
 const Homologacao: React.FC = () => {
@@ -41,13 +42,14 @@ const Homologacao: React.FC = () => {
     tabAlertExample: <TabAlertExample />,
     tabSwitchExample: <TabSwitchExample />,
     dateRangeExample: <DateRangeExample />,
+    tabServiceExample: <TabServiceExample />,
   };
 
   return (<div className="bg-gray-800 text-white min-h-screen p-2 sm:p-4 font-sans">
     <div className="max-w-4xl mx-auto">
       <header className="text-center mb-8">
         <h1 className="text-xl sm:text-4xl font-extrabold text-cyan-400">
-          `useForm` - v0.5.1
+          `useForm` - v0.6.0
         </h1>
         <p className="text-gray-400 mt-2">Edição Contextual por Seção</p>
       </header>
@@ -154,6 +156,12 @@ const Homologacao: React.FC = () => {
           tabId="dateRangeExample"
           label="range-date"
           isActive={activeTab === "dateRangeExample"}
+          onClick={setActiveTab}
+        />
+        <TabButton
+          tabId="tabServiceExample"
+          label="Api Service"
+          isActive={activeTab === "tabServiceExample"}
           onClick={setActiveTab}
         />
       </div>
